@@ -9,6 +9,7 @@ const int LOADCELL2_SCK_PIN = 26;
 HX711 scale1;
 HX711 scale2;
 // DEFINE VARIABLES FOR HX711
+char date_time [25] = "";
 double reading1;
 double reading2;
 double reading1print;
@@ -23,13 +24,6 @@ int left_up_button; // FREE BUTTON
 int left_down_button; // CALIBRATE BUTTON
 int right_up_button; // FREE BUTTON
 int right_down_button; // WEIGHTING BUTTON
-// DEFINE VARIABLES FOR RTC
-int RTC_year;
-int RTC_month;
-int RTC_day;
-int RTC_hour;
-int RTC_minute;
-int RTC_second;
 // RTC INITIALIZATION
 RTC_PCF8563 rtc;
 
@@ -195,30 +189,10 @@ void show_display(void *pvParameters) // create display menu task
       {
         u8g2.print(final_weight, 2);
       }
-      
+
       u8g2.setFont(u8g2_font_fivepx_tr);
       u8g2.setCursor(5, 55);
-      u8g2.print(RTC_day);
-      u8g2.setCursor(15, 55);
-      u8g2.print("/");
-      u8g2.setCursor(21, 55);
-      u8g2.print(RTC_month);
-      u8g2.setCursor(30, 55);
-      u8g2.print("/");
-      u8g2.setCursor(36, 55);
-      u8g2.print(RTC_year);      
-      
-      u8g2.setCursor(80, 55);
-      u8g2.print(RTC_hour);      
-      u8g2.setCursor(90, 55);
-      u8g2.print(":");      
-      u8g2.setCursor(94, 55);
-      u8g2.print(RTC_minute);
-      u8g2.setCursor(105, 55);
-      u8g2.print(":");
-      u8g2.setCursor(110, 55);
-      u8g2.print(RTC_second);
-
+      u8g2.print(date_time);
 
       if (left_up_button == 1)
       {
@@ -399,13 +373,7 @@ void get_time(void *pvParameters)
   while (1)
   {
     DateTime now = rtc.now();
-
-    RTC_year = (now.year());
-    RTC_month = (now.month());
-    RTC_day = (now.day());
-    RTC_hour = (now.hour());
-    RTC_minute = (now.minute());
-    RTC_second = (now.second());
+    sprintf(date_time, "%02d/%02d/%04d        %02d:%02d:%02d", now.day(), now.month(), now.year(), now.hour(), now.minute(), now.second());
     vTaskDelay(200);
   }
 }
