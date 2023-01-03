@@ -146,7 +146,7 @@ void show_display(void *pvParameters) // create display menu task
     }
     if (i < 2)
     {
-      second_page();
+      //second_page();
       vTaskDelay(5000);
       coefficient = reading1/reading2; 
       Serial.print("Reading 1 value - ");
@@ -162,6 +162,7 @@ void show_display(void *pvParameters) // create display menu task
     u8g2. firstPage ( ) ;
     do  
     {
+      
       u8g2.setFont(u8g2_font_fivepx_tr);
       u8g2.setCursor(5, 20);
       u8g2.print("coeff = ");
@@ -224,7 +225,6 @@ void show_display(void *pvParameters) // create display menu task
         if (xSemaphoreTake(mutex_wait, portMAX_DELAY) == pdTRUE) 
         {
           u8g2.drawButtonUTF8(0, 7, U8G2_BTN_INV|U8G2_BTN_BW2, 0,  2,  2, "FREE BUTTON" );
-          vTaskDelay(50);
         }
         xSemaphoreGive(mutex_wait);
       }
@@ -233,7 +233,6 @@ void show_display(void *pvParameters) // create display menu task
         u8g2.setFont(u8g2_font_fivepx_tr);
         u8g2.setCursor(0, 7);
         u8g2.print("FREE BUTTON");
-        vTaskDelay(50);
       }
 
 
@@ -251,7 +250,6 @@ void show_display(void *pvParameters) // create display menu task
           Serial.println(reading2);
           Serial.print("Coefficient value - ");
           Serial.println(coefficient, 4);
-          vTaskDelay(50);
         }
         xSemaphoreGive(mutex_wait);
       }
@@ -260,7 +258,6 @@ void show_display(void *pvParameters) // create display menu task
         u8g2.setFont(u8g2_font_fivepx_tr);
         u8g2.setCursor(0, 64);
         u8g2.print("CALIBRATE");
-        vTaskDelay(50);
       }
 
       if (right_up_button == 1)
@@ -268,7 +265,6 @@ void show_display(void *pvParameters) // create display menu task
         if (xSemaphoreTake(mutex_wait, portMAX_DELAY) == pdTRUE) 
         {
           u8g2.drawButtonUTF8(70, 7, U8G2_BTN_INV|U8G2_BTN_BW2, 0,  2,  2, "FREE BUTTON" );
-          vTaskDelay(50);
         }
         xSemaphoreGive(mutex_wait);
       }
@@ -286,7 +282,6 @@ void show_display(void *pvParameters) // create display menu task
         {
           u8g2.drawButtonUTF8(85, 64, U8G2_BTN_INV|U8G2_BTN_BW2, 0,  2,  2, "WEIGHTING" );
           flag_weighting = 1;
-          vTaskDelay(500);
         }
         xSemaphoreGive(mutex_wait);
       }
@@ -296,9 +291,11 @@ void show_display(void *pvParameters) // create display menu task
         u8g2.setCursor(85, 64);
         u8g2.print("WEIGHTING");
       }
+      
     }
     while ( u8g2.nextPage() );
   }
+
 }
 
 void getweight1(void *pvParameters)
@@ -409,10 +406,10 @@ void get_time(void *pvParameters)
     RTC_hour = (now.hour());
     RTC_minute = (now.minute());
     RTC_second = (now.second());
-    vTaskDelay(1000);
+    vTaskDelay(200);
   }
 }
-
+/*
 void bubble_sort()
 {
   for (int i = 0; i < CALC_ARRAY_SIZE; i++)
@@ -438,6 +435,23 @@ void bubble_sort()
   Serial.println(final_weight);
   
 }
+*/
+
+void bubble_sort()
+{
+  for (int i = 0; i < CALC_ARRAY_SIZE; i++)
+  {
+    mas[i] = (reading2*20*coefficient)/reading1;
+    if (flag_weighting == 1)
+      break;
+    vTaskDelay(25);
+  }
+  qsort(mas, CALC_ARRAY_SIZE, sizeof(double), cmpfunc);
+  final_weight = mas[CALC_ARRAY_SIZE/2];
+  Serial.println(final_weight);
+  
+}
+
 
 void average_calc()
 {
