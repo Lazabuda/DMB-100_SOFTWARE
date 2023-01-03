@@ -5,6 +5,7 @@
 //SCLK = 18, MISO = 19, MOSI = 23, SS = 5 
 #include <SPI.h>
 #include "RTClib.h"
+#include <stdlib.h>
 
 //#define WDT_TIMEOUT 2
 
@@ -23,4 +24,8 @@ void get_final_weight(void *pvParameters);
 void get_time(void *pvParameters);
 void set_calibration_factor(void *pvParameters);
 void autocalibration(void *pvParameters);
+
+int cmpfunc (const void * a, const void * b) {
+   return ( *(double*)a - *(double*)b );
+}
  
