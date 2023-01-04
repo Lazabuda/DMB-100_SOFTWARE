@@ -9,6 +9,7 @@ const int LOADCELL2_SCK_PIN = 26;
 HX711 scale1;
 HX711 scale2;
 // DEFINE VARIABLES FOR HX711
+double current_weight;
 char date_time [25] = "";
 double reading1;
 double reading2;
@@ -18,7 +19,7 @@ double final_weight;
 double mas[CALC_ARRAY_SIZE];
 double average = 0;
 int flag_weighting;
-double coefficient = 0.955;
+double coefficient;
 // DEFINE BUTTON FLAGS
 int left_up_button; // FREE BUTTON
 int left_down_button; // CALIBRATE BUTTON
@@ -125,7 +126,6 @@ void task_button(void *pvParameters) // create button RTOS task
 void show_display(void *pvParameters) // create display menu task
 {
   Serial.begin(115200);
-  double value2;
   u8g2. begin ( ) ;
   u8g2. setContrast  (10) ;
   u8g2. enableUTF8Print ( ) ;
@@ -175,8 +175,7 @@ void show_display(void *pvParameters) // create display menu task
 
       u8g2.setFont(u8g2_font_fivepx_tr);
       u8g2.setCursor(90, 20);
-      value2 = (reading2*20*coefficient)/reading1;
-      u8g2.print(value2, 2);
+      u8g2.print(current_weight, 2);
 
       u8g2.setFont(u8g2_font_7x13B_tf);
       u8g2.setCursor(30, 45);
@@ -268,6 +267,7 @@ void show_display(void *pvParameters) // create display menu task
       
     }
     while ( u8g2.nextPage() );
+    vTaskDelay(15); // Without this delay, Watchdog Timer always gets triggered
   }
 
 }
@@ -281,7 +281,7 @@ void getweight1(void *pvParameters)
   while (1)
   {
     reading1 = scale1.get_units(3);
-    vTaskDelay(50);
+    vTaskDelay(25);
   }
 }
 
@@ -294,7 +294,7 @@ void getweight2(void *pvParameters)
   while (1)
   {
     reading2 = scale2.get_units(3);
-    vTaskDelay(50);
+    vTaskDelay(25);
   }
 }
 
@@ -374,7 +374,7 @@ void get_time(void *pvParameters)
   {
     DateTime now = rtc.now();
     sprintf(date_time, "%02d/%02d/%04d        %02d:%02d:%02d", now.day(), now.month(), now.year(), now.hour(), now.minute(), now.second());
-    vTaskDelay(200);
+    vTaskDelay(300);
   }
 }
 /*
@@ -441,6 +441,15 @@ void average_calc()
       Serial.println(final_weight);    
 }
 
+void show_current_weight(void *pvParameters)
+{
+  while (1)
+  {
+    current_weight = (reading2*20*coefficient)/reading1;
+    vTaskDelay(500);
+  }
+}
+
 
 void setup ( void )  
 { 
@@ -454,6 +463,7 @@ void setup ( void )
   xTaskCreate(getweight2, "getweight2", 2048, NULL, 2, NULL);
   xTaskCreate(get_final_weight, "get_final_weight", 2048, NULL, 2, NULL);
   xTaskCreate(get_time, "get_time", 2048, NULL, 2, NULL);
+  xTaskCreate(show_current_weight, "current_weight", 1024, NULL, 2, NULL);
 }
  
 void loop ( void )  

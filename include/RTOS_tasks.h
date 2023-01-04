@@ -24,6 +24,7 @@ void get_final_weight(void *pvParameters);
 void get_time(void *pvParameters);
 void set_calibration_factor(void *pvParameters);
 void autocalibration(void *pvParameters);
+void show_current_weight(void *pvParameters);
 
 int cmpfunc (const void * a, const void * b) {
    return ( *(double*)a - *(double*)b );
