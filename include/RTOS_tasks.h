@@ -6,6 +6,8 @@
 #include <SPI.h>
 #include "RTClib.h"
 #include <stdlib.h>
+#include "SD.h"
+#include <EEPROM.h>
 
 //#define WDT_TIMEOUT 2
 
@@ -14,6 +16,11 @@
 #define BUTTON_RIGHT 2
 #define BUTTON_LEFT 4
 #define CALC_ARRAY_SIZE 900
+
+#define RXD2 16
+#define TXD2 17
+#define BARCODE_DATA_SIZE 50
+
 
 void start_screen(void *pvParameters);
 void task_button(void *pvParameters);
@@ -25,6 +32,8 @@ void get_time(void *pvParameters);
 void set_calibration_factor(void *pvParameters);
 void autocalibration(void *pvParameters);
 void show_current_weight(void *pvParameters);
+void write_SD_log(void *pvParameters);
+void barcode_scanner(void *pvParameters);
 
 int cmpfunc (const void * a, const void * b) {
    return ( *(double*)a - *(double*)b );

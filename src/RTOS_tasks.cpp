@@ -11,6 +11,8 @@ HX711 scale2;
 // DEFINE VARIABLES FOR HX711
 double current_weight;
 char date_time [25] = "";
+char logfilename [25] = "";
+char barcode_data[BARCODE_DATA_SIZE] = "";
 double reading1;
 double reading2;
 double reading1print;
@@ -19,6 +21,7 @@ double final_weight;
 double mas[CALC_ARRAY_SIZE];
 double average = 0;
 int flag_weighting;
+int flag;
 double coefficient;
 // DEFINE BUTTON FLAGS
 int left_up_button; // FREE BUTTON
@@ -34,7 +37,10 @@ U8G2_ST7565_ERC12864_1_4W_SW_SPI u8g2 ( U8G2_R0, /* scl=*/  14 , /* si=*/  13 , 
 void start_page();
 void second_page();
 void average_calc();
-void bubble_sort();
+void median_calc();
+
+File LogFile;
+
  // Assign semaphore
 SemaphoreHandle_t btnSemaphore;
 volatile SemaphoreHandle_t mutex_wait;
@@ -165,13 +171,22 @@ void show_display(void *pvParameters) // create display menu task
       u8g2.setCursor(40, 20);
       u8g2.print(coefficient, 4);
 
-      u8g2.setFont(u8g2_font_fivepx_tr);
-      u8g2.setCursor(5, 30);
-      u8g2.print(reading1print);
-
-      u8g2.setFont(u8g2_font_fivepx_tr);
-      u8g2.setCursor(80, 30);
-      u8g2.print(reading2print);
+      if (flag == 0)
+      {
+        u8g2.setFont(u8g2_font_fivepx_tr);
+        u8g2.setCursor(5, 30);
+        u8g2.print(reading1print);
+        
+        u8g2.setFont(u8g2_font_fivepx_tr);
+        u8g2.setCursor(80, 30);
+        u8g2.print(reading2print); 
+      }
+      if (flag == 1)
+      {
+        u8g2.setFont(u8g2_font_fivepx_tr);
+        u8g2.setCursor(5, 30);
+        u8g2.print(barcode_data);
+      }
 
       u8g2.setFont(u8g2_font_fivepx_tr);
       u8g2.setCursor(90, 20);
@@ -223,6 +238,7 @@ void show_display(void *pvParameters) // create display menu task
           Serial.println(reading2);
           Serial.print("Coefficient value - ");
           Serial.println(coefficient, 4);
+          flag = 0;
         }
         xSemaphoreGive(mutex_wait);
       }
@@ -237,15 +253,17 @@ void show_display(void *pvParameters) // create display menu task
       {
         if (xSemaphoreTake(mutex_wait, portMAX_DELAY) == pdTRUE) 
         {
-          u8g2.drawButtonUTF8(70, 7, U8G2_BTN_INV|U8G2_BTN_BW2, 0,  2,  2, "FREE BUTTON" );
+          u8g2.drawButtonUTF8(105, 7, U8G2_BTN_INV|U8G2_BTN_BW2, 0,  2,  2, "SAVE" );
+          flag = 0;
+          LogFile.close();
         }
         xSemaphoreGive(mutex_wait);
       }
       else
       {
         u8g2.setFont(u8g2_font_fivepx_tr);
-        u8g2.setCursor(70, 7);
-        u8g2.print("FREE BUTTON");
+        u8g2.setCursor(105, 7);
+        u8g2.print("SAVE");
       }
       
       
@@ -360,7 +378,7 @@ void get_final_weight(void *pvParameters)
     while (flag_weighting == 0) // Here is the method, which we use to calculate
     {
       //average_calc();
-      bubble_sort();
+      median_calc();
     }
   }
 }
@@ -370,11 +388,18 @@ void get_time(void *pvParameters)
   rtc.begin();
   rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
   rtc.start();
+  int i = 0;
   while (1)
   {
     DateTime now = rtc.now();
     sprintf(date_time, "%02d/%02d/%04d        %02d:%02d:%02d", now.day(), now.month(), now.year(), now.hour(), now.minute(), now.second());
     vTaskDelay(300);
+    if (i == 0)
+    {
+      sprintf(logfilename, "%04d_%02d_%02d__%02d:%02d:%02d_log.csv", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
+      i = 1;
+    }
+
   }
 }
 /*
@@ -405,7 +430,7 @@ void bubble_sort()
 }
 */
 
-void bubble_sort()
+void median_calc()
 {
   for (int i = 0; i < CALC_ARRAY_SIZE; i++)
   {
@@ -417,28 +442,29 @@ void bubble_sort()
   qsort(mas, CALC_ARRAY_SIZE, sizeof(double), cmpfunc);
   final_weight = mas[CALC_ARRAY_SIZE/2];
   Serial.println(final_weight);
-  
+
 }
 
 
 void average_calc()
 {
   for (int i = 0; i < CALC_ARRAY_SIZE; i++)
-      {
-        mas[i] = reading2*(20/reading1);
-        if (flag_weighting == 1)
-          break;
-        vTaskDelay(25);
-      }
-      for (int i = 0; i < CALC_ARRAY_SIZE; i++)
-      {
-        average = average + (mas[i]/CALC_ARRAY_SIZE);
-        if (flag_weighting == 1)
-          break;
-      }
-      final_weight = average;
-      average = 0;
-      Serial.println(final_weight);    
+  {
+    mas[i] = reading2*(20/reading1);
+    if (flag_weighting == 1)
+      break;
+    vTaskDelay(25);
+  }
+  for (int i = 0; i < CALC_ARRAY_SIZE; i++)
+  {
+    average = average + (mas[i]/CALC_ARRAY_SIZE);
+    if (flag_weighting == 1)
+      break;
+  }
+  final_weight = average;
+  average = 0;
+  Serial.println(final_weight);  
+    
 }
 
 void show_current_weight(void *pvParameters)
@@ -447,6 +473,53 @@ void show_current_weight(void *pvParameters)
   {
     current_weight = (reading2*20*coefficient)/reading1;
     vTaskDelay(500);
+  }
+}
+
+void write_SD_log(void *pvParameters)
+{
+  LogFile = SD.open("logfilename.csv", FILE_WRITE);
+  while (1)
+  {
+    if (LogFile)
+    {
+      LogFile.print(date_time);
+      LogFile.print(",");
+      LogFile.print(current_weight);
+      LogFile.print(",");
+      LogFile.print(final_weight);
+      LogFile.print(reading1);
+      LogFile.print(",");
+      LogFile.print(reading2);
+      LogFile.println();
+      vTaskDelay(500);
+    }
+  }
+}
+
+
+void barcode_scanner(void *pvParameters)
+{
+  Serial2.begin(57600, SERIAL_8N1, RXD2, TXD2);
+  int data_symbol;
+  while (1)
+  {
+    if (Serial2.available()) 
+    {
+      data_symbol = 0;
+      while (Serial2.available() && (data_symbol < BARCODE_DATA_SIZE))
+        {
+          barcode_data[data_symbol] = (char(Serial2.read()));
+          data_symbol++;
+        }
+        //Serial.print(char(Serial2.read()));
+      //Serial.println();
+      Serial.println(barcode_data);
+      flag = 1;
+    }
+    else
+      vTaskDelay(1000);
+    
   }
 }
 
@@ -464,6 +537,8 @@ void setup ( void )
   xTaskCreate(get_final_weight, "get_final_weight", 2048, NULL, 2, NULL);
   xTaskCreate(get_time, "get_time", 2048, NULL, 2, NULL);
   xTaskCreate(show_current_weight, "current_weight", 1024, NULL, 2, NULL);
+  //xTaskCreate(write_SD_log, "write_SD_log", 2048, NULL, 2, NULL);
+  xTaskCreate(barcode_scanner, "barcode_scanner", 2048, NULL, 2, NULL);
 }
  
 void loop ( void )  
