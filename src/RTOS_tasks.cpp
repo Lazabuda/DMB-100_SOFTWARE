@@ -1,5 +1,6 @@
 #include "RTOS_tasks.h"
 
+const int CS = 5;
 // DEFINE PINs FOR TWO HX711
 const int LOADCELL1_DOUT_PIN = 32;
 const int LOADCELL1_SCK_PIN = 33;
@@ -10,7 +11,7 @@ HX711 scale1;
 HX711 scale2;
 // DEFINE VARIABLES FOR HX711
 double current_weight;
-char date_time [25] = "";
+char date_time [50] = "";
 char logfilename [25] = "";
 char barcode_data[BARCODE_DATA_SIZE] = "";
 double reading1;
@@ -22,6 +23,7 @@ double mas[CALC_ARRAY_SIZE];
 double average = 0;
 int flag_weighting;
 int flag;
+int task_counter = 0;
 double coefficient;
 // DEFINE BUTTON FLAGS
 int left_up_button; // FREE BUTTON
@@ -38,8 +40,11 @@ void start_page();
 void second_page();
 void average_calc();
 void median_calc();
+void append_data_to_log();
+void write_log_header(fs::FS &fs, const char * path);
 
 File LogFile;
+File myFile;
 
  // Assign semaphore
 SemaphoreHandle_t btnSemaphore;
@@ -135,6 +140,19 @@ void show_display(void *pvParameters) // create display menu task
   u8g2. begin ( ) ;
   u8g2. setContrast  (10) ;
   u8g2. enableUTF8Print ( ) ;
+  if(!SD.begin())
+  {
+    Serial.println("Card Mount Failed");
+    return;
+  }
+  uint8_t cardType = SD.cardType();
+
+  if(cardType == CARD_NONE)
+  {
+    Serial.println("No SD card attached");
+    return;
+  }
+  write_log_header(SD, "/log.csv");
   int i = 0;
   while (true)
   {
@@ -255,7 +273,15 @@ void show_display(void *pvParameters) // create display menu task
         {
           u8g2.drawButtonUTF8(105, 7, U8G2_BTN_INV|U8G2_BTN_BW2, 0,  2,  2, "SAVE" );
           flag = 0;
-          LogFile.close();
+          if (task_counter == 0)
+          {
+            //write_to_sd();
+            append_data_to_log();
+            vTaskDelay(30);
+            memset(barcode_data, '\0', sizeof(barcode_data));
+            task_counter ++;
+          }
+          
         }
         xSemaphoreGive(mutex_wait);
       }
@@ -264,6 +290,7 @@ void show_display(void *pvParameters) // create display menu task
         u8g2.setFont(u8g2_font_fivepx_tr);
         u8g2.setCursor(105, 7);
         u8g2.print("SAVE");
+        task_counter = 0;
       }
       
       
@@ -476,27 +503,6 @@ void show_current_weight(void *pvParameters)
   }
 }
 
-void write_SD_log(void *pvParameters)
-{
-  LogFile = SD.open("logfilename.csv", FILE_WRITE);
-  while (1)
-  {
-    if (LogFile)
-    {
-      LogFile.print(date_time);
-      LogFile.print(",");
-      LogFile.print(current_weight);
-      LogFile.print(",");
-      LogFile.print(final_weight);
-      LogFile.print(reading1);
-      LogFile.print(",");
-      LogFile.print(reading2);
-      LogFile.println();
-      vTaskDelay(500);
-    }
-  }
-}
-
 
 void barcode_scanner(void *pvParameters)
 {
@@ -512,8 +518,6 @@ void barcode_scanner(void *pvParameters)
           barcode_data[data_symbol] = (char(Serial2.read()));
           data_symbol++;
         }
-        //Serial.print(char(Serial2.read()));
-      //Serial.println();
       Serial.println(barcode_data);
       flag = 1;
     }
@@ -523,6 +527,119 @@ void barcode_scanner(void *pvParameters)
   }
 }
 
+void readFile(fs::FS &fs, const char * path)
+{
+  Serial.printf("Reading file: %s\n", path);
+  Serial.println();
+  myFile = fs.open(path);
+  if(!myFile)
+  {
+    Serial.println("Failed to open file for reading");
+    return;
+  }
+
+  Serial.print("Read from file: ");
+  Serial.println();
+  while(myFile.available())
+  {
+    Serial.write(myFile.read());
+  }
+  myFile.close();
+}
+
+void write_log_header(fs::FS &fs, const char * path)
+{
+  myFile = fs.open(path, FILE_APPEND);
+  if(!myFile)
+  {
+    Serial.println("Failed to open file for writing");
+    return;
+  }
+  myFile.print("date/time");
+  myFile.print(",");
+  //myFile.print(current_weight);
+  //myFile.print(",");
+  myFile.print("Weight");
+  myFile.print(",");
+  //myFile.print("reading1");
+  //myFile.print(",");
+  //myFile.print("reading2");
+  //myFile.print(",");
+  myFile.print("Barcode_data");
+  myFile.println();
+  myFile.close();
+}
+
+void appendFile(fs::FS &fs, const char * path)
+{
+  Serial.printf("Appending to file: %s\n", path);
+  Serial.println();
+  myFile = fs.open(path, FILE_APPEND);
+  if(!myFile)
+  {
+    Serial.println("Failed to open file for appending");
+    return;
+  }
+  myFile.print(date_time);
+  myFile.print(",");
+  //myFile.print(current_weight);
+  //myFile.print(",");
+  myFile.print(final_weight);
+  myFile.print(",");
+  //myFile.print(reading1);
+  //myFile.print(",");
+  //myFile.print(reading2);
+  //myFile.print(",");
+  myFile.print(barcode_data);
+  myFile.println();
+  myFile.close();
+}
+
+void append_data_to_log()
+{
+  if(!SD.begin())
+  {
+    Serial.println("Card Mount Failed");
+    return;
+  }
+  uint8_t cardType = SD.cardType();
+
+  if(cardType == CARD_NONE)
+  {
+    Serial.println("No SD card attached");
+    return;
+  }
+
+  Serial.print("SD Card Type: ");
+  if(cardType == CARD_MMC)
+  {
+    Serial.println("MMC");
+  } 
+  else if(cardType == CARD_SD)
+  {
+    Serial.println("SDSC");
+  } 
+  else if(cardType == CARD_SDHC)
+  {
+    Serial.println("SDHC");
+  } 
+  else 
+  {
+    Serial.println("UNKNOWN");
+  }
+
+  uint64_t cardSize = SD.cardSize() / (1024 * 1024);
+  Serial.printf("SD Card Size: %lluMB\n", cardSize);
+  Serial.println();
+
+  //writeFile(SD, "/log.csv", "Hello ");
+  appendFile(SD, "/log.csv");
+  readFile(SD, "/log.csv");
+}
+
+
+//---------------------------------------------------------------------------//
+
 
 void setup ( void )  
 { 
@@ -531,13 +648,12 @@ void setup ( void )
   //esp_task_wdt_add(NULL); //add current thread to WDT watch
   //esp_task_wdt_reset();
   xTaskCreate(task_button, "buttons", 4096, NULL, 2, NULL);
-  xTaskCreate(show_display, "show_display", 2048, NULL, 2, NULL);
+  xTaskCreate(show_display, "show_display", 8192, NULL, 2, NULL);
   xTaskCreate(getweight1, "getweight1", 2048, NULL, 2, NULL);
   xTaskCreate(getweight2, "getweight2", 2048, NULL, 2, NULL);
   xTaskCreate(get_final_weight, "get_final_weight", 2048, NULL, 2, NULL);
   xTaskCreate(get_time, "get_time", 2048, NULL, 2, NULL);
   xTaskCreate(show_current_weight, "current_weight", 1024, NULL, 2, NULL);
-  //xTaskCreate(write_SD_log, "write_SD_log", 2048, NULL, 2, NULL);
   xTaskCreate(barcode_scanner, "barcode_scanner", 2048, NULL, 2, NULL);
 }
  
