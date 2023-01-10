@@ -24,6 +24,7 @@ double average = 0;
 int flag_weighting;
 int flag;
 int task_counter = 0;
+int error_flag = 0; //Error flags: 1 - SD card error; 2 - Barcode scanner error; 3 - RTC error;
 double coefficient;
 // DEFINE BUTTON FLAGS
 int left_up_button; // FREE BUTTON
@@ -143,14 +144,7 @@ void show_display(void *pvParameters) // create display menu task
   if(!SD.begin())
   {
     Serial.println("Card Mount Failed");
-    return;
-  }
-  uint8_t cardType = SD.cardType();
-
-  if(cardType == CARD_NONE)
-  {
-    Serial.println("No SD card attached");
-    return;
+    error_flag = 1;
   }
   write_log_header(SD, "/log.csv");
   int i = 0;
@@ -180,6 +174,17 @@ void show_display(void *pvParameters) // create display menu task
     u8g2. firstPage ( ) ;
     do  
     {
+      if (error_flag == 0)
+      {
+        u8g2.setFont(u8g2_font_siji_t_6x10);
+        u8g2.drawGlyph(50, 10, 0xE1D6);
+      }
+      
+      if (error_flag == 1)
+      {
+        u8g2.setFont(u8g2_font_siji_t_6x10);
+        u8g2.drawGlyph(50, 10, 0xE0B3);
+      }
       
       u8g2.setFont(u8g2_font_fivepx_tr);
       u8g2.setCursor(5, 20);
@@ -356,7 +361,7 @@ void start_page()
     u8g2.print("Balances 100g");
     u8g2.setFont(u8g2_font_fivepx_tr);
     u8g2.setCursor(5, 45);
-    u8g2.print("Version 1.0 beta. 04.12.2022");
+    u8g2.print("Version 1.1 beta. 10.01.2023");
     u8g2.setFont(u8g2_font_fivepx_tr);
     u8g2.setCursor(50, 53);
     u8g2.print("");
@@ -415,18 +420,11 @@ void get_time(void *pvParameters)
   rtc.begin();
   rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
   rtc.start();
-  int i = 0;
   while (1)
   {
     DateTime now = rtc.now();
     sprintf(date_time, "%02d/%02d/%04d        %02d:%02d:%02d", now.day(), now.month(), now.year(), now.hour(), now.minute(), now.second());
     vTaskDelay(300);
-    if (i == 0)
-    {
-      sprintf(logfilename, "%04d_%02d_%02d__%02d:%02d:%02d_log.csv", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
-      i = 1;
-    }
-
   }
 }
 /*
@@ -491,7 +489,6 @@ void average_calc()
   final_weight = average;
   average = 0;
   Serial.println(final_weight);  
-    
 }
 
 void show_current_weight(void *pvParameters)
@@ -557,15 +554,17 @@ void write_log_header(fs::FS &fs, const char * path)
   }
   myFile.print("date/time");
   myFile.print(",");
-  //myFile.print(current_weight);
-  //myFile.print(",");
   myFile.print("Weight");
   myFile.print(",");
-  //myFile.print("reading1");
-  //myFile.print(",");
-  //myFile.print("reading2");
-  //myFile.print(",");
   myFile.print("Barcode_data");
+  myFile.print(",");
+  myFile.print("current_weight");
+  myFile.print(",");
+  myFile.print("coefficient");
+  myFile.print(",");
+  myFile.print("reading1");
+  myFile.print(",");
+  myFile.print("reading2");
   myFile.println();
   myFile.close();
 }
@@ -582,28 +581,53 @@ void appendFile(fs::FS &fs, const char * path)
   }
   myFile.print(date_time);
   myFile.print(",");
-  //myFile.print(current_weight);
-  //myFile.print(",");
   myFile.print(final_weight);
   myFile.print(",");
-  //myFile.print(reading1);
-  //myFile.print(",");
-  //myFile.print(reading2);
-  //myFile.print(",");
   myFile.print(barcode_data);
+  myFile.print(",");
+  myFile.print(current_weight);
+  myFile.print(",");
+  myFile.print(coefficient);
+  myFile.print(",");
+  myFile.print(reading1);
+  myFile.print(",");
+  myFile.print(reading2);
   myFile.println();
   myFile.close();
 }
 
 void append_data_to_log()
 {
+  
   if(!SD.begin())
   {
     Serial.println("Card Mount Failed");
+    u8g2. firstPage ( ) ;
+    do
+    {
+      u8g2.setFont(u8g2_font_t0_16b_tf);
+      u8g2.setCursor(15, 15);
+      u8g2.print("SD card ERROR");
+      vTaskDelay(100);
+    }
+    while ( u8g2.nextPage() );
     return;
   }
+  else
+  {
+    u8g2. firstPage ( ) ;
+    do
+    {
+      u8g2.setFont(u8g2_font_t0_16b_tf);
+      u8g2.setCursor(15, 15);
+      u8g2.print("DATA SAVED :)");
+      vTaskDelay(100);
+    }
+    while ( u8g2.nextPage() );
+  }
+  /*
   uint8_t cardType = SD.cardType();
-
+  
   if(cardType == CARD_NONE)
   {
     Serial.println("No SD card attached");
@@ -631,7 +655,7 @@ void append_data_to_log()
   uint64_t cardSize = SD.cardSize() / (1024 * 1024);
   Serial.printf("SD Card Size: %lluMB\n", cardSize);
   Serial.println();
-
+  */
   //writeFile(SD, "/log.csv", "Hello ");
   appendFile(SD, "/log.csv");
   readFile(SD, "/log.csv");
