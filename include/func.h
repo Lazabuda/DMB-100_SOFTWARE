@@ -1,3 +1,5 @@
+#pragma once
+
 //---------------------INCLUDES---------------------------//
 #include "HX711.h"
 #include <Arduino.h> 

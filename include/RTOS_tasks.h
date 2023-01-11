@@ -1,3 +1,5 @@
+#pragma once
+
 #define SERIAL_NUMBER 0001
 
 #include "HX711.h"

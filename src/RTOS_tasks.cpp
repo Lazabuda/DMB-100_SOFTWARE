@@ -185,13 +185,14 @@ void show_display(void *pvParameters) // create display menu task
       if (error_flag == 0)
       {
         u8g2.setFont(u8g2_font_siji_t_6x10);
-        u8g2.drawGlyph(50, 10, 0xE1D6);
+        u8g2.drawGlyph(55, 10, 0xE1D6);
       }
       
       if (error_flag == 1)
       {
         u8g2.setFont(u8g2_font_siji_t_6x10);
-        u8g2.drawGlyph(50, 10, 0xE0B3);
+        u8g2.setCursor(55, 10);
+        u8g2.print("NO SD!");
       }
       
       u8g2.setFont(u8g2_font_fivepx_tr);
@@ -243,14 +244,14 @@ void show_display(void *pvParameters) // create display menu task
       {
         if (xSemaphoreTake(mutex_wait, portMAX_DELAY) == pdTRUE) 
         {
-          u8g2.drawButtonUTF8(0, 7, U8G2_BTN_INV|U8G2_BTN_BW2, 0,  2,  2, "FREE BUTTON" );
+          u8g2.drawButtonUTF8(0, 10, U8G2_BTN_INV|U8G2_BTN_BW2, 0,  0,  0, "FREE BUTTON" );
         }
         xSemaphoreGive(mutex_wait);
       }
       else
       {
         u8g2.setFont(u8g2_font_fivepx_tr);
-        u8g2.setCursor(0, 7);
+        u8g2.setCursor(0, 10);
         u8g2.print("FREE BUTTON");
       }
 
@@ -284,7 +285,7 @@ void show_display(void *pvParameters) // create display menu task
       {
         if (xSemaphoreTake(mutex_wait, portMAX_DELAY) == pdTRUE) 
         {
-          u8g2.drawButtonUTF8(105, 7, U8G2_BTN_INV|U8G2_BTN_BW2, 0,  2,  2, "SAVE" );
+          u8g2.drawButtonUTF8(105, 10, U8G2_BTN_INV|U8G2_BTN_BW2, 0,  0,  0, "SAVE" );
           flag = 0;
           if (task_counter == 0)
           {
@@ -301,7 +302,7 @@ void show_display(void *pvParameters) // create display menu task
       else
       {
         u8g2.setFont(u8g2_font_fivepx_tr);
-        u8g2.setCursor(105, 7);
+        u8g2.setCursor(105, 10);
         u8g2.print("SAVE");
         task_counter = 0;
       }
