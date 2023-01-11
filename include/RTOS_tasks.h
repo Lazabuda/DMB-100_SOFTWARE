@@ -25,6 +25,7 @@
 #define BARCODE_DATA_SIZE 50
 
 
+
 void task_button(void *pvParameters);
 void show_display(void *pvParameters);
 void getweight1(void *pvParameters);
