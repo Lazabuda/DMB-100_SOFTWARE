@@ -1,51 +1,55 @@
 #include "RTOS_tasks.h"
+#include "func.h"
 
-const int CS = 5;
+//---------------------GLOBAL VARIABLES---------------------------//
+
 // DEFINE PINs FOR TWO HX711
 const int LOADCELL1_DOUT_PIN = 32;
 const int LOADCELL1_SCK_PIN = 33;
 const int LOADCELL2_DOUT_PIN = 25;
 const int LOADCELL2_SCK_PIN = 26;
-// HX711 INITIALIZATION
-HX711 scale1;
-HX711 scale2;
+// CLASSES
+HX711 scale1; // HX711
+HX711 scale2; //  HX711 (2)
+RTC_PCF8563 rtc; // REAL TIME CLOCK PCF8563
+
 // DEFINE VARIABLES FOR HX711
-double current_weight;
-char date_time [50] = "";
-char logfilename [25] = "";
-char barcode_data[BARCODE_DATA_SIZE] = "";
 double reading1;
 double reading2;
 double reading1print;
 double reading2print;
 double final_weight;
+double current_weight;
+double coefficient;
 double mas[CALC_ARRAY_SIZE];
 double average = 0;
 int flag_weighting;
 int flag;
+
+// SERVICE VARIABLES
 int task_counter = 0;
 int error_flag = 0; //Error flags: 1 - SD card error; 2 - Barcode scanner error; 3 - RTC error;
-double coefficient;
+
+// DEFINE VARIABLES FOR REAL TIME CLOCK
+char date_time [50] = "";
+
+// DEFINE VARIABLES FOR BARCODE SCANNER
+char barcode_data[BARCODE_DATA_SIZE] = "";
+
 // DEFINE BUTTON FLAGS
 int left_up_button; // FREE BUTTON
 int left_down_button; // CALIBRATE BUTTON
-int right_up_button; // FREE BUTTON
+int right_up_button; // SAVE BUTTON
 int right_down_button; // WEIGHTING BUTTON
-// RTC INITIALIZATION
-RTC_PCF8563 rtc;
+
+
+
+
+
 
 // DEFINE PINOUTS FOR DISPLAY: scl = 14 // si = 13 // cs = 15 // rs = 12 // rse = 27
 U8G2_ST7565_ERC12864_1_4W_SW_SPI u8g2 ( U8G2_R0, /* scl=*/  14 , /* si=*/  13 , /* cs=*/  15 , /* rs=*/  12 , /* rse=*/  27 ) ;
-// DEFINE COMMON FUNCTIONS
-void start_page();
-void second_page();
-void average_calc();
-void median_calc();
-void append_data_to_log();
-void write_log_header(fs::FS &fs, const char * path);
 
-File LogFile;
-File myFile;
 
  // Assign semaphore
 SemaphoreHandle_t btnSemaphore;
@@ -56,6 +60,8 @@ void IRAM_ATTR ISR_btn() // IRAM_ATTR means, that we use RAM (wich more faster a
 {
   xSemaphoreGiveFromISR( btnSemaphore, NULL ); // Macro to release a semaphore from interruption. The semaphore must have previously been created with a call to xSemaphoreCreateBinary() or xSemaphoreCreateCounting().
 }
+
+//---------------------------------------BUTTONS FREERTOS TASK------------------------------------//
 
 void task_button(void *pvParameters) // create button RTOS task
 {
@@ -134,6 +140,8 @@ void task_button(void *pvParameters) // create button RTOS task
 
   }
 }
+
+//---------------------------------------DISPLAY FREERTOS TASK------------------------------------//
 
 void show_display(void *pvParameters) // create display menu task
 {
@@ -322,6 +330,8 @@ void show_display(void *pvParameters) // create display menu task
 
 }
 
+//------------------------------------WEIGHTING PROCESS FREERTOS TASKs------------------------------------//
+
 void getweight1(void *pvParameters)
 {
   scale1.begin(LOADCELL1_DOUT_PIN, LOADCELL1_SCK_PIN);
@@ -348,51 +358,6 @@ void getweight2(void *pvParameters)
   }
 }
 
-void start_page()
-{
-  u8g2. firstPage ( ) ;
-  do
-  {
-    u8g2.setFont(u8g2_font_t0_16b_tf);
-    u8g2.setCursor(10, 15);
-    u8g2.print("Digital Marine");
-    u8g2.setFont(u8g2_font_t0_16b_tf);
-    u8g2.setCursor(15, 30);
-    u8g2.print("Balances 100g");
-    u8g2.setFont(u8g2_font_fivepx_tr);
-    u8g2.setCursor(5, 45);
-    u8g2.print("Version 1.1 beta. 10.01.2023");
-    u8g2.setFont(u8g2_font_fivepx_tr);
-    u8g2.setCursor(50, 53);
-    u8g2.print("");
-    u8g2.setFont(u8g2_font_fivepx_tr);
-    u8g2.setCursor(25, 61);
-    u8g2.print("t.me/coreblogger");
-  }
-  while ( u8g2.nextPage() );
-}
-
-void second_page()
-{
-  while (reading1 < 35000 && reading2 < 35000)
-  {
-    u8g2. firstPage ( ) ;
-    do
-    {
-      u8g2.setFont(u8g2_font_t0_16b_tf);
-      u8g2.setCursor(15, 15);
-      u8g2.print("Please, place");
-      u8g2.setFont(u8g2_font_t0_16b_tf);
-      u8g2.setCursor(10, 30);
-      u8g2.print("20g weight on");
-      u8g2.setFont(u8g2_font_t0_16b_tf);
-      u8g2.setCursor(15, 45);
-      u8g2.print("the both cells");
-    }
-    while ( u8g2.nextPage() );
-  }
-  
-}
 
 
 void get_final_weight(void *pvParameters)
@@ -409,51 +374,10 @@ void get_final_weight(void *pvParameters)
     }
     while (flag_weighting == 0) // Here is the method, which we use to calculate
     {
-      //average_calc();
       median_calc();
     }
   }
 }
-
-void get_time(void *pvParameters)
-{
-  rtc.begin();
-  rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
-  rtc.start();
-  while (1)
-  {
-    DateTime now = rtc.now();
-    sprintf(date_time, "%02d/%02d/%04d        %02d:%02d:%02d", now.day(), now.month(), now.year(), now.hour(), now.minute(), now.second());
-    vTaskDelay(300);
-  }
-}
-/*
-void bubble_sort()
-{
-  for (int i = 0; i < CALC_ARRAY_SIZE; i++)
-  {
-    mas[i] = (reading2*20*coefficient)/reading1;
-    if (flag_weighting == 1)
-      break;
-    vTaskDelay(25);
-  }
-  for (int i = 0; i < (CALC_ARRAY_SIZE - 1); i++)
-  {
-    for (int j = (CALC_ARRAY_SIZE - 1); j > i; j--)
-    {
-      if (mas[j - 1] > mas[j])
-      {
-        double temp = mas[j - 1]; // меняем их местами
-        mas[j - 1] = mas[j];
-        mas[j] = temp;
-      }
-    }
-  }
-  final_weight = mas[CALC_ARRAY_SIZE/2];
-  Serial.println(final_weight);
-  
-}
-*/
 
 void median_calc()
 {
@@ -470,27 +394,6 @@ void median_calc()
 
 }
 
-
-void average_calc()
-{
-  for (int i = 0; i < CALC_ARRAY_SIZE; i++)
-  {
-    mas[i] = reading2*(20/reading1);
-    if (flag_weighting == 1)
-      break;
-    vTaskDelay(25);
-  }
-  for (int i = 0; i < CALC_ARRAY_SIZE; i++)
-  {
-    average = average + (mas[i]/CALC_ARRAY_SIZE);
-    if (flag_weighting == 1)
-      break;
-  }
-  final_weight = average;
-  average = 0;
-  Serial.println(final_weight);  
-}
-
 void show_current_weight(void *pvParameters)
 {
   while (1)
@@ -500,6 +403,23 @@ void show_current_weight(void *pvParameters)
   }
 }
 
+//-------------------------------------REAL TIME CLOCK FREERTOS TASK------------------------------------//
+
+void get_time(void *pvParameters)
+{
+  rtc.begin();
+  rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+  rtc.start();
+  while (1)
+  {
+    DateTime now = rtc.now();
+    sprintf(date_time, "%02d/%02d/%04d        %02d:%02d:%02d", now.day(), now.month(), now.year(), now.hour(), now.minute(), now.second());
+    vTaskDelay(300);
+  }
+}
+
+
+//---------------------------------------BARCODE FREERTOS TASK------------------------------------//
 
 void barcode_scanner(void *pvParameters)
 {
@@ -524,145 +444,7 @@ void barcode_scanner(void *pvParameters)
   }
 }
 
-void readFile(fs::FS &fs, const char * path)
-{
-  Serial.printf("Reading file: %s\n", path);
-  Serial.println();
-  myFile = fs.open(path);
-  if(!myFile)
-  {
-    Serial.println("Failed to open file for reading");
-    return;
-  }
-
-  Serial.print("Read from file: ");
-  Serial.println();
-  while(myFile.available())
-  {
-    Serial.write(myFile.read());
-  }
-  myFile.close();
-}
-
-void write_log_header(fs::FS &fs, const char * path)
-{
-  myFile = fs.open(path, FILE_APPEND);
-  if(!myFile)
-  {
-    Serial.println("Failed to open file for writing");
-    return;
-  }
-  myFile.print("date/time");
-  myFile.print(",");
-  myFile.print("Weight");
-  myFile.print(",");
-  myFile.print("Barcode_data");
-  myFile.print(",");
-  myFile.print("current_weight");
-  myFile.print(",");
-  myFile.print("coefficient");
-  myFile.print(",");
-  myFile.print("reading1");
-  myFile.print(",");
-  myFile.print("reading2");
-  myFile.println();
-  myFile.close();
-}
-
-void appendFile(fs::FS &fs, const char * path)
-{
-  Serial.printf("Appending to file: %s\n", path);
-  Serial.println();
-  myFile = fs.open(path, FILE_APPEND);
-  if(!myFile)
-  {
-    Serial.println("Failed to open file for appending");
-    return;
-  }
-  myFile.print(date_time);
-  myFile.print(",");
-  myFile.print(final_weight);
-  myFile.print(",");
-  myFile.print(barcode_data);
-  myFile.print(",");
-  myFile.print(current_weight);
-  myFile.print(",");
-  myFile.print(coefficient);
-  myFile.print(",");
-  myFile.print(reading1);
-  myFile.print(",");
-  myFile.print(reading2);
-  myFile.println();
-  myFile.close();
-}
-
-void append_data_to_log()
-{
-  
-  if(!SD.begin())
-  {
-    Serial.println("Card Mount Failed");
-    u8g2. firstPage ( ) ;
-    do
-    {
-      u8g2.setFont(u8g2_font_t0_16b_tf);
-      u8g2.setCursor(15, 15);
-      u8g2.print("SD card ERROR");
-      vTaskDelay(100);
-    }
-    while ( u8g2.nextPage() );
-    return;
-  }
-  else
-  {
-    u8g2. firstPage ( ) ;
-    do
-    {
-      u8g2.setFont(u8g2_font_t0_16b_tf);
-      u8g2.setCursor(15, 15);
-      u8g2.print("DATA SAVED :)");
-      vTaskDelay(100);
-    }
-    while ( u8g2.nextPage() );
-  }
-  /*
-  uint8_t cardType = SD.cardType();
-  
-  if(cardType == CARD_NONE)
-  {
-    Serial.println("No SD card attached");
-    return;
-  }
-
-  Serial.print("SD Card Type: ");
-  if(cardType == CARD_MMC)
-  {
-    Serial.println("MMC");
-  } 
-  else if(cardType == CARD_SD)
-  {
-    Serial.println("SDSC");
-  } 
-  else if(cardType == CARD_SDHC)
-  {
-    Serial.println("SDHC");
-  } 
-  else 
-  {
-    Serial.println("UNKNOWN");
-  }
-
-  uint64_t cardSize = SD.cardSize() / (1024 * 1024);
-  Serial.printf("SD Card Size: %lluMB\n", cardSize);
-  Serial.println();
-  */
-  //writeFile(SD, "/log.csv", "Hello ");
-  appendFile(SD, "/log.csv");
-  readFile(SD, "/log.csv");
-}
-
-
-//---------------------------------------------------------------------------//
+//----------------------------------FREERTOS SETUP------------------------------------//
 
 
 void setup ( void )  
