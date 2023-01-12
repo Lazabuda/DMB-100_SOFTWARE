@@ -135,7 +135,7 @@ void task_button(void *pvParameters) // create button RTOS task
         attachInterrupt(BUTTON_LEFT, ISR_btn, FALLING);
         isISR = true;
       }
-      vTaskDelay(100); // this function calls the task manager, which set this task to WAIT mode for 100 system ticks.
+      vTaskDelay(100 / portTICK_PERIOD_MS); // this function calls the task manager, which set this task to WAIT mode for 100 system ticks.
     }
 
   }
@@ -161,7 +161,7 @@ void show_display(void *pvParameters) // create display menu task
     if (i < 1)
     {
       start_page();
-      vTaskDelay(5000);
+      vTaskDelay(5000 / portTICK_PERIOD_MS);
       i++;
     }
     if (i < 2)
@@ -291,7 +291,7 @@ void show_display(void *pvParameters) // create display menu task
           {
             //write_to_sd();
             append_data_to_log();
-            vTaskDelay(30);
+            vTaskDelay(30 / portTICK_PERIOD_MS);
             memset(barcode_data, '\0', sizeof(barcode_data));
             task_counter ++;
           }
@@ -326,7 +326,7 @@ void show_display(void *pvParameters) // create display menu task
       
     }
     while ( u8g2.nextPage() );
-    vTaskDelay(15); // Without this delay, Watchdog Timer always gets triggered
+    vTaskDelay(15 / portTICK_PERIOD_MS); // Without this delay, Watchdog Timer always gets triggered
   }
 
 }
@@ -342,7 +342,7 @@ void getweight1(void *pvParameters)
   while (1)
   {
     reading1 = scale1.get_units(3);
-    vTaskDelay(25);
+    vTaskDelay(25 / portTICK_PERIOD_MS);
   }
 }
 
@@ -355,7 +355,7 @@ void getweight2(void *pvParameters)
   while (1)
   {
     reading2 = scale2.get_units(3);
-    vTaskDelay(25);
+    vTaskDelay(25 / portTICK_PERIOD_MS);
   }
 }
 
@@ -387,7 +387,7 @@ void median_calc()
     mas[i] = (reading2*20*coefficient)/reading1;
     if (flag_weighting == 1)
       break;
-    vTaskDelay(25);
+    vTaskDelay(25 / portTICK_PERIOD_MS);
   }
   qsort(mas, CALC_ARRAY_SIZE, sizeof(double), cmpfunc);
   final_weight = mas[CALC_ARRAY_SIZE/2];
@@ -400,7 +400,7 @@ void show_current_weight(void *pvParameters)
   while (1)
   {
     current_weight = (reading2*20*coefficient)/reading1;
-    vTaskDelay(500);
+    vTaskDelay(500 / portTICK_PERIOD_MS);
   }
 }
 
@@ -415,7 +415,7 @@ void get_time(void *pvParameters)
   {
     DateTime now = rtc.now();
     sprintf(date_time, "%02d/%02d/%04d        %02d:%02d:%02d", now.day(), now.month(), now.year(), now.hour(), now.minute(), now.second());
-    vTaskDelay(300);
+    vTaskDelay(300 / portTICK_PERIOD_MS);
   }
 }
 
@@ -440,7 +440,7 @@ void barcode_scanner(void *pvParameters)
       flag = 1;
     }
     else
-      vTaskDelay(1000);
+      vTaskDelay(1000 / portTICK_PERIOD_MS);
     
   }
 }

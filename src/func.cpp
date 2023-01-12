@@ -97,7 +97,7 @@ void append_data_to_log()
       u8g2.setFont(u8g2_font_t0_16b_tf);
       u8g2.setCursor(15, 15);
       u8g2.print("SD card ERROR");
-      vTaskDelay(100);
+      vTaskDelay(100 / portTICK_PERIOD_MS);
     }
     while ( u8g2.nextPage() );
     return;
@@ -109,8 +109,10 @@ void append_data_to_log()
     {
       u8g2.setFont(u8g2_font_t0_16b_tf);
       u8g2.setCursor(15, 15);
-      u8g2.print("DATA SAVED :)");
-      vTaskDelay(100);
+      u8g2.print("DATA HAS");
+      u8g2.setCursor(15, 40);
+      u8g2.print("BEEN SAVED :)");
+      vTaskDelay(100 / portTICK_PERIOD_MS);
     }
     while ( u8g2.nextPage() );
   }
