@@ -28,7 +28,7 @@ int flag;
 
 // SERVICE VARIABLES
 int task_counter = 0;
-int error_flag = 0; //Error flags: 1 - SD card error; 2 - Barcode scanner error; 3 - RTC error;
+int error_flag = 0x0; //Error flags: 1 - SD card error; 2 - reading1 not in the area of the right values
 
 // DEFINE VARIABLES FOR REAL TIME CLOCK
 char date_time [50] = "";
@@ -56,9 +56,12 @@ SemaphoreHandle_t btnSemaphore;
 volatile SemaphoreHandle_t mutex_wait;
 
 // create function - interrupt handler
-void IRAM_ATTR ISR_btn() // IRAM_ATTR means, that we use RAM (wich more faster and recommended for interrupts). ISR - interrupt service routine
+void IRAM_ATTR ISR_btn() // IRAM_ATTR means, that we use RAM (wich more faster and recommended for interrupts).ISR - interrupt service routine
+
+// Macro to release a semaphore from interruption. The semaphore must have previously been created with a call to 
+//xSemaphoreCreateBinary() or xSemaphoreCreateCounting().
 {
-  xSemaphoreGiveFromISR( btnSemaphore, NULL ); // Macro to release a semaphore from interruption. The semaphore must have previously been created with a call to xSemaphoreCreateBinary() or xSemaphoreCreateCounting().
+  xSemaphoreGiveFromISR( btnSemaphore, NULL ); 
 }
 
 //---------------------------------------BUTTONS FREERTOS TASK------------------------------------//
@@ -87,7 +90,7 @@ void task_button(void *pvParameters) // create button RTOS task
     if (isISR) // interrupt handlers 
     {
       xSemaphoreTake(btnSemaphore, portMAX_DELAY);
-      detachInterrupt(BUTTON_DOWN);
+      detachInterrupt(BUTTON_DOWN); //Turns off the given interrupt.
       detachInterrupt(BUTTON_UP);
       detachInterrupt(BUTTON_RIGHT);
       detachInterrupt(BUTTON_LEFT);
@@ -152,7 +155,7 @@ void show_display(void *pvParameters) // create display menu task
   if(!SD.begin())
   {
     Serial.println("Card Mount Failed");
-    error_flag = 1;
+    error_flag = error_flag | 0x01;
   }
   write_log_header(SD, "/log.csv");
   int i = 0;
@@ -182,13 +185,13 @@ void show_display(void *pvParameters) // create display menu task
     u8g2. firstPage ( ) ;
     do  
     {
-      if (error_flag == 0)
+      if (error_flag == 0x0)
       {
         u8g2.setFont(u8g2_font_siji_t_6x10);
         u8g2.drawGlyph(55, 10, 0xE1D6);
       }
       
-      if (error_flag == 1)
+      if (error_flag == 0x01)
       {
         u8g2.setFont(u8g2_font_siji_t_6x10);
         u8g2.setCursor(55, 10);

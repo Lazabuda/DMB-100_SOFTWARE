@@ -36,6 +36,7 @@ extern double final_weight;
 extern double current_weight;
 extern double coefficient;
 extern char barcode_data[BARCODE_DATA_SIZE];
+extern int error_flag;
 
 extern U8G2_ST7565_ERC12864_1_4W_SW_SPI u8g2;
 

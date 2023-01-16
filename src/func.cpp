@@ -219,3 +219,11 @@ void second_page()
 int cmpfunc (const void * a, const void * b) {
    return ( *(double*)a - *(double*)b );
 }
+
+void is_error()
+{
+  if (reading1 < 35000 && reading1 > 40000)
+  {
+    error_flag = error_flag | 0x02;
+  }
+}
