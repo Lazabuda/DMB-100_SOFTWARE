@@ -227,3 +227,23 @@ void is_error()
     error_flag = error_flag | 0x02;
   }
 }
+
+int set_bit(int *num_bit)
+{
+  error_flag |= (1 << *num_bit); // set
+  //error_flag &= ~(1<<*num_bit); // clear
+  return error_flag;
+}
+
+int is_byte_set(int *num_bit)
+{
+  if (((error_flag << *num_bit) & 0x01) == 1)
+  {
+    return true;
+  }
+  if (((error_flag << *num_bit) & 0x01) == 0)
+  {
+    return false;
+  }
+  return true;
+}

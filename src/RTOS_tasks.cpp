@@ -152,10 +152,11 @@ void show_display(void *pvParameters) // create display menu task
   u8g2. begin ( ) ;
   u8g2. setContrast  (10) ;
   u8g2. enableUTF8Print ( ) ;
+  int error_bit = 1;
   if(!SD.begin())
   {
     Serial.println("Card Mount Failed");
-    error_flag = error_flag | 0x01;
+    set_bit(&error_bit);
   }
   write_log_header(SD, "/log.csv");
   int i = 0;
@@ -185,13 +186,13 @@ void show_display(void *pvParameters) // create display menu task
     u8g2. firstPage ( ) ;
     do  
     {
-      if (error_flag == 0x0)
+      if (is_byte_set(&error_bit) == false)
       {
         u8g2.setFont(u8g2_font_siji_t_6x10);
         u8g2.drawGlyph(55, 10, 0xE1D6);
       }
       
-      if (error_flag == 0x01)
+      if (is_byte_set(&error_bit))
       {
         u8g2.setFont(u8g2_font_siji_t_6x10);
         u8g2.setCursor(55, 10);
