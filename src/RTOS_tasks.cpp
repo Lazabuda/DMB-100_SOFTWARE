@@ -28,7 +28,7 @@ int flag;
 
 // SERVICE VARIABLES
 int task_counter = 0;
-int error_flag = 0x0; //Error flags: 1 - SD card error; 2 - reading1 not in the area of the right values
+int error_flag = 0x0; //Error bits: 0 bit - SD card error; 1 bit - reading1 is not in the area of the right values
 
 // DEFINE VARIABLES FOR REAL TIME CLOCK
 char date_time [50] = "";
@@ -152,11 +152,10 @@ void show_display(void *pvParameters) // create display menu task
   u8g2. begin ( ) ;
   u8g2. setContrast  (10) ;
   u8g2. enableUTF8Print ( ) ;
-  int error_bit = 1;
   if(!SD.begin())
   {
     Serial.println("Card Mount Failed");
-    set_bit(&error_bit);
+    set_bit(0);
   }
   write_log_header(SD, "/log.csv");
   int i = 0;
@@ -171,7 +170,8 @@ void show_display(void *pvParameters) // create display menu task
     if (i < 2)
     {
       //second_page();
-      vTaskDelay(5000);
+      //vTaskDelay(5000);
+      
       coefficient = reading1/reading2; 
       Serial.print("Reading 1 value - ");
       Serial.println(reading1);
@@ -186,19 +186,19 @@ void show_display(void *pvParameters) // create display menu task
     u8g2. firstPage ( ) ;
     do  
     {
-      if (is_byte_set(&error_bit) == false)
+      if (is_bit_set(0) == false)
       {
         u8g2.setFont(u8g2_font_siji_t_6x10);
         u8g2.drawGlyph(55, 10, 0xE1D6);
       }
       
-      if (is_byte_set(&error_bit))
+      if (is_bit_set(0))
       {
         u8g2.setFont(u8g2_font_siji_t_6x10);
         u8g2.setCursor(55, 10);
         u8g2.print("NO SD!");
       }
-      
+
       u8g2.setFont(u8g2_font_fivepx_tr);
       u8g2.setCursor(5, 20);
       u8g2.print("coeff = ");
@@ -403,6 +403,10 @@ void show_current_weight(void *pvParameters)
 {
   while (1)
   {
+    //if (reading1 < 35000 && reading1 > 40000)
+    //{
+    //  set_bit(1);
+    //}
     current_weight = (reading2*20*coefficient)/reading1;
     vTaskDelay(500 / portTICK_PERIOD_MS);
   }
@@ -412,7 +416,11 @@ void show_current_weight(void *pvParameters)
 
 void get_time(void *pvParameters)
 {
-  rtc.begin();
+  //rtc.begin();
+  if (! rtc.begin()) 
+  {
+    set_bit(2);
+  }
   rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
   rtc.start();
   while (1)

@@ -49,5 +49,6 @@ void average_calc();
 void median_calc();
 void append_data_to_log();
 void write_log_header(fs::FS &fs, const char * path);
-int set_bit(int *num_bit);
-int is_byte_set(int *num_bit);
+int set_bit(int num_bit);
+int is_bit_set(int num_bit);
+void is_error();
