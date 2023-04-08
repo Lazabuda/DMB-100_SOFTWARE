@@ -24,7 +24,7 @@ double coefficient;
 double mas[CALC_ARRAY_SIZE];
 double average = 0;
 int flag_weighting;
-int flag;
+volatile int flag;
 
 // SERVICE VARIABLES
 int task_counter = 0;
@@ -169,8 +169,8 @@ void show_display(void *pvParameters) // create display menu task
     }
     if (i < 2)
     {
-      //second_page();
-      //vTaskDelay(5000);
+      second_page();
+      vTaskDelay(5000);
       
       coefficient = reading1/reading2; 
       Serial.print("Reading 1 value - ");
@@ -275,6 +275,7 @@ void show_display(void *pvParameters) // create display menu task
           Serial.print("Coefficient value - ");
           Serial.println(coefficient, 4);
           flag = 0;
+          vTaskDelay(20);
         }
         xSemaphoreGive(mutex_wait);
       }
@@ -388,7 +389,7 @@ void median_calc()
 {
   for (int i = 0; i < CALC_ARRAY_SIZE; i++)
   {
-    mas[i] = (reading2*20*coefficient)/reading1;
+    mas[i] = (reading2*COMPENSATION_WEIGHT*coefficient)/reading1;
     if (flag_weighting == 1)
       break;
     vTaskDelay(25 / portTICK_PERIOD_MS);
@@ -407,7 +408,7 @@ void show_current_weight(void *pvParameters)
     //{
     //  set_bit(1);
     //}
-    current_weight = (reading2*20*coefficient)/reading1;
+    current_weight = (reading2*COMPENSATION_WEIGHT*coefficient)/reading1;
     vTaskDelay(500 / portTICK_PERIOD_MS);
   }
 }

@@ -204,10 +204,14 @@ void second_page()
       u8g2.print("Please, place");
       u8g2.setFont(u8g2_font_t0_16b_tf);
       u8g2.setCursor(10, 30);
-      u8g2.print("20g weight on");
+      u8g2.print(COMPENSATION_WEIGHT);
+      u8g2.setFont(u8g2_font_t0_16b_tf);
+      u8g2.setCursor(15, 30);
+      u8g2.print("    weight on");
       u8g2.setFont(u8g2_font_t0_16b_tf);
       u8g2.setCursor(15, 45);
       u8g2.print("the both cells");
+      vTaskDelay(200);
     }
     while ( u8g2.nextPage() );
   }

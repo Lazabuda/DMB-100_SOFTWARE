@@ -14,7 +14,7 @@
 
 //---------------------DEFINES---------------------------//
 #define BARCODE_DATA_SIZE 50
-#define CALC_ARRAY_SIZE 50 //MAX = 900
+#define CALC_ARRAY_SIZE 700 //MAX = 900
 
 #define BUTTON_UP 34
 #define BUTTON_DOWN 35
@@ -24,6 +24,8 @@
 
 #define RXD2 16
 #define TXD2 17
+
+#define COMPENSATION_WEIGHT 7.77 // The weight of compensation sample. 20 g by default.
 
 const int CS = 5;
 
