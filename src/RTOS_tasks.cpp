@@ -450,7 +450,10 @@ void barcode_scanner(void *pvParameters)
           data_symbol++;
         }
       Serial.println(barcode_data);
-      flag = 1;
+      if (data_symbol > 5)
+      {
+        flag = 1;
+      }
     }
     else
       vTaskDelay(1000 / portTICK_PERIOD_MS);
