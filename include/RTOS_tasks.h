@@ -1,5 +1,7 @@
 #pragma once
 
+#define GYROSCOPE_MODULE
+
 #define SERIAL_NUMBER 0001
 
 #include "HX711.h"
@@ -24,6 +26,7 @@ void get_final_weight(void *pvParameters);
 void get_time(void *pvParameters);
 void show_current_weight(void *pvParameters);
 void barcode_scanner(void *pvParameters);
+void gyroscope_data(void *pvParameters);
 
 
  

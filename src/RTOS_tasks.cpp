@@ -437,6 +437,9 @@ void get_time(void *pvParameters)
 
 void barcode_scanner(void *pvParameters)
 {
+#ifdef GYROSCOPE_MODULE
+  vTaskDelete(NULL);
+#endif
   Serial2.begin(57600, SERIAL_8N1, RXD2, TXD2);
   int data_symbol;
   while (1)
@@ -461,6 +464,36 @@ void barcode_scanner(void *pvParameters)
   }
 }
 
+//----------------------------------GET DATA FROM GYROSCOPE TASK------------------------------------//
+
+void gyroscope_data(void *pvParameters)
+{
+  Serial2.begin(115200, SERIAL_8N1, RXD2, TXD2);
+  int data_symbol;
+  while (1)
+  {
+    if (Serial2.available()) 
+    {
+      data_symbol = 0;
+      while (Serial2.available() && (data_symbol < BARCODE_DATA_SIZE))
+        {
+          barcode_data[data_symbol] = (char(Serial2.read()));
+          data_symbol++;
+        }
+      Serial.println(barcode_data);
+#ifndef GYROSCOPE_MODULE
+      if (data_symbol > 5)
+      {
+        flag = 1;
+      }
+#endif
+    }
+    else
+      vTaskDelay(1000 / portTICK_PERIOD_MS);
+    
+  }
+}
+
 //----------------------------------FREERTOS SETUP------------------------------------//
 
 
@@ -478,6 +511,9 @@ void setup ( void )
   xTaskCreate(get_time, "get_time", 2048, NULL, 2, NULL);
   xTaskCreate(show_current_weight, "current_weight", 1024, NULL, 2, NULL);
   xTaskCreate(barcode_scanner, "barcode_scanner", 2048, NULL, 2, NULL);
+#ifdef GYROSCOPE_MODULE
+  xTaskCreate(gyroscope_data, "gyroscope data", 2048, NULL, 2, NULL);
+#endif
 }
  
 void loop ( void )  

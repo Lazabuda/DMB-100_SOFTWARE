@@ -13,7 +13,7 @@
 //#include "RTOS_tasks.h"
 
 //---------------------DEFINES---------------------------//
-#define BARCODE_DATA_SIZE 50
+#define BARCODE_DATA_SIZE 500
 #define CALC_ARRAY_SIZE 700 //MAX = 900
 
 #define BUTTON_UP 34
