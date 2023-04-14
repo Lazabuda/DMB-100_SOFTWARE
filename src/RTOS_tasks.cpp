@@ -1,6 +1,8 @@
 #include "RTOS_tasks.h"
 #include "func.h"
 
+#define SERVICE_MODE
+
 //---------------------GLOBAL VARIABLES---------------------------//
 
 // DEFINE PINs FOR TWO HX711
@@ -437,7 +439,7 @@ void get_time(void *pvParameters)
 
 void barcode_scanner(void *pvParameters)
 {
-#ifdef GYROSCOPE_MODULE
+#ifdef SERVICE_MODE
   vTaskDelete(NULL);
 #endif
   Serial2.begin(57600, SERIAL_8N1, RXD2, TXD2);
@@ -481,7 +483,7 @@ void gyroscope_data(void *pvParameters)
           data_symbol++;
         }
       Serial.println(barcode_data);
-#ifndef GYROSCOPE_MODULE
+#ifndef SERVICE_MODE
       if (data_symbol > 5)
       {
         flag = 1;
@@ -511,7 +513,7 @@ void setup ( void )
   xTaskCreate(get_time, "get_time", 2048, NULL, 2, NULL);
   xTaskCreate(show_current_weight, "current_weight", 1024, NULL, 2, NULL);
   xTaskCreate(barcode_scanner, "barcode_scanner", 2048, NULL, 2, NULL);
-#ifdef GYROSCOPE_MODULE
+#ifdef SERVICE_MODE
   xTaskCreate(gyroscope_data, "gyroscope data", 2048, NULL, 2, NULL);
 #endif
 }
