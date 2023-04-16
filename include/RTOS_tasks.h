@@ -1,7 +1,5 @@
 #pragma once
 
-#define GYROSCOPE_MODULE
-
 #define SERIAL_NUMBER 0001
 
 #include "HX711.h"

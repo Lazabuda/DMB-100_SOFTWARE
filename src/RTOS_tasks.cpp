@@ -171,9 +171,10 @@ void show_display(void *pvParameters) // create display menu task
     }
     if (i < 2)
     {
+#ifndef SERVICE_MODE
       second_page();
       vTaskDelay(5000);
-      
+#endif      
       coefficient = reading1/reading2; 
       Serial.print("Reading 1 value - ");
       Serial.println(reading1);
@@ -200,7 +201,7 @@ void show_display(void *pvParameters) // create display menu task
         u8g2.setCursor(55, 10);
         u8g2.print("NO SD!");
       }
-
+#ifndef SERVICE_MODE
       u8g2.setFont(u8g2_font_fivepx_tr);
       u8g2.setCursor(5, 20);
       u8g2.print("coeff = ");
@@ -208,6 +209,13 @@ void show_display(void *pvParameters) // create display menu task
       u8g2.setFont(u8g2_font_fivepx_tr);
       u8g2.setCursor(40, 20);
       u8g2.print(coefficient, 4);
+#endif
+
+#ifdef SERVICE_MODE 
+      u8g2.setFont(u8g2_font_fivepx_tr);
+      u8g2.setCursor(5, 20);
+      u8g2.print("SERVICE MODE");
+#endif      
 
       if (flag == 0)
       {
@@ -235,7 +243,14 @@ void show_display(void *pvParameters) // create display menu task
       
       if (final_weight == false)
       {
+#ifndef SERVICE_MODE        
         u8g2.print("WAIT...");
+#endif
+#ifdef SERVICE_MODE
+        u8g2.setFont(u8g2_font_7x13B_tf);
+        u8g2.setCursor(15, 45);
+        u8g2.print("SERVICE MODE");
+#endif
       }
       else
       {
@@ -370,7 +385,9 @@ void getweight2(void *pvParameters)
 
 void get_final_weight(void *pvParameters)
 {
-  
+#ifdef SERVICE_MODE
+  vTaskDelete(NULL);
+#endif  
   while (1)
   {    
     if (flag_weighting == 1)
@@ -404,6 +421,9 @@ void median_calc()
 
 void show_current_weight(void *pvParameters)
 {
+#ifdef SERVICE_MODE
+  vTaskDelete(NULL);
+#endif
   while (1)
   {
     //if (reading1 < 35000 && reading1 > 40000)
