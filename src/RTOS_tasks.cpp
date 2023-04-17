@@ -150,7 +150,7 @@ void task_button(void *pvParameters) // create button RTOS task
 
 void show_display(void *pvParameters) // create display menu task
 {
-  Serial.begin(115200);
+  Serial.begin(9600);
   u8g2. begin ( ) ;
   u8g2. setContrast  (10) ;
   u8g2. enableUTF8Print ( ) ;
@@ -439,7 +439,7 @@ void show_current_weight(void *pvParameters)
 
 void get_time(void *pvParameters)
 {
-  //rtc.begin();
+  rtc.begin();
   if (! rtc.begin()) 
   {
     set_bit(2);
@@ -449,7 +449,12 @@ void get_time(void *pvParameters)
   while (1)
   {
     DateTime now = rtc.now();
+#ifndef SERVICE_MODE
     sprintf(date_time, "%02d/%02d/%04d        %02d:%02d:%02d", now.day(), now.month(), now.year(), now.hour(), now.minute(), now.second());
+#endif
+#ifdef SERVICE_MODE
+    sprintf(date_time, "%02d/%02d/%04d-%02d:%02d:%02d", now.day(), now.month(), now.year(), now.hour(), now.minute(), now.second());
+#endif
     vTaskDelay(300 / portTICK_PERIOD_MS);
   }
 }
@@ -490,7 +495,7 @@ void barcode_scanner(void *pvParameters)
 
 void gyroscope_data(void *pvParameters)
 {
-  Serial2.begin(115200, SERIAL_8N1, RXD2, TXD2);
+  Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
   int data_symbol;
   while (1)
   {
@@ -516,6 +521,198 @@ void gyroscope_data(void *pvParameters)
   }
 }
 
+//------------------------------ESP32 Wi-Fi TELNET Server-----------------------------//
+
+void telnet_server(void *pvParameters)
+{
+  int8_t i;
+  //Serial.begin(115200);
+  Serial.print("\nAttaching to WiFi '" + String(ssid) + String("' ..."));
+
+  WiFi.begin(ssid, password);
+  Serial.print(" attached to WiFi.\nConnecting to network ... ");
+  for (i = 60; i != 0; i--) 
+  {
+    if (WiFi.status() == WL_CONNECTED) break;
+    delay(333);
+  }
+  if (i == 0) 
+  {
+    Serial.println("Network connection failed!\nRestarting ESP32!");
+    delay(1000);
+    ESP.restart();
+  }
+
+  Serial.print(" network connected.\nLocal IP address: ");
+  Serial.println(WiFi.localIP());
+  Server.begin();
+  Server.setNoDelay(true);
+  Serial.print("Ready! Use port 23 to connect.");
+  while (1)
+  {
+    delay(200);
+    if (WiFi.status() != WL_CONNECTED) 
+    {
+      Serial.println("WiFi not connected! Retrying ...");
+      if (Client) Client.stop();
+    }
+    if (Server.hasClient()) { //check if there are any new clients
+    Client = Server.available();
+    if (!Client) Serial.println("available broken");
+    Serial.print("New client: ");
+    Serial.println(Client.remoteIP());
+    }
+
+    if (Client && Client.connected()) 
+    { //check clients for data
+      if (Client.available()) 
+    {
+    while (Client.available())
+    Serial.write(Client.read()); //get data from the telnet client and push it to the UART
+    }
+    }
+    else if (Client) Client.stop();
+
+    if (Serial.available())
+    { //check UART for data
+      size_t len = Serial.available();
+      char sbuf[len];
+      Serial.readBytes(sbuf, len);
+      if (Client && Client.connected()) Client.write(sbuf, len);
+    }
+    while (Client.available()) Serial2.write(Client.read());
+    size_t len = Serial2.available();
+    if (len == 0);
+    char sbuf[len];
+    Serial2.readBytes(sbuf, len);
+    Client.write(sbuf, len);
+    vTaskDelay(5);
+  }
+  
+}
+
+//--------------------------------GET DETA FROM MPU6050-------------------------------//
+
+void mpu6050_data(void *pvParameters)
+{
+  while (!Serial)
+    delay(10); // will pause Zero, Leonardo, etc until serial console opens
+
+  Serial.println("Adafruit MPU6050 test!");
+
+  // Try to initialize!
+  if (!mpu.begin()) 
+  {
+    Serial.println("Failed to find MPU6050 chip");
+    while (1) 
+    {
+      delay(10);
+    }
+  }
+  Serial.println("MPU6050 Found!");
+
+  mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
+  Serial.print("Accelerometer range set to: ");
+  switch (mpu.getAccelerometerRange()) 
+  {
+    case MPU6050_RANGE_2_G:
+      Serial.println("+-2G");
+      break;
+    case MPU6050_RANGE_4_G:
+      Serial.println("+-4G");
+      break;
+    case MPU6050_RANGE_8_G:
+      Serial.println("+-8G");
+      break;
+    case MPU6050_RANGE_16_G:
+      Serial.println("+-16G");
+      break;
+  }
+  mpu.setGyroRange(MPU6050_RANGE_500_DEG);
+  Serial.print("Gyro range set to: ");
+  switch (mpu.getGyroRange()) 
+  {
+    case MPU6050_RANGE_250_DEG:
+      Serial.println("+- 250 deg/s");
+      break;
+    case MPU6050_RANGE_500_DEG:
+      Serial.println("+- 500 deg/s");
+      break;
+    case MPU6050_RANGE_1000_DEG:
+      Serial.println("+- 1000 deg/s");
+      break;
+    case MPU6050_RANGE_2000_DEG:
+      Serial.println("+- 2000 deg/s");
+      break;
+  }
+
+  mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
+  Serial.print("Filter bandwidth set to: ");
+  switch (mpu.getFilterBandwidth()) 
+  {
+    case MPU6050_BAND_260_HZ:
+      Serial.println("260 Hz");
+      break;
+    case MPU6050_BAND_184_HZ:
+      Serial.println("184 Hz");
+      break;
+    case MPU6050_BAND_94_HZ:
+      Serial.println("94 Hz");
+      break;
+    case MPU6050_BAND_44_HZ:
+      Serial.println("44 Hz");
+      break;
+    case MPU6050_BAND_21_HZ:
+      Serial.println("21 Hz");
+      break;
+    case MPU6050_BAND_10_HZ:
+      Serial.println("10 Hz");
+      break;
+    case MPU6050_BAND_5_HZ:
+      Serial.println("5 Hz");
+      break;
+  }
+
+  Serial.println("");
+  delay(100);
+  while(1)
+  {
+    /* Get new sensor events with the readings */
+    sensors_event_t a, g, temp;
+    mpu.getEvent(&a, &g, &temp);
+
+    /* Print out the values */
+    Serial.print("Date/Time: ");
+    Serial.print(date_time);
+    Serial.print(" | Reading1: ");
+    Serial.print(reading1);
+    Serial.print(" | Reading2: ");
+    Serial.print(reading2);
+    Serial.print(" | Acceleration X: ");
+    Serial.print(a.acceleration.x);
+    Serial.print(", Y: ");
+    Serial.print(a.acceleration.y);
+    Serial.print(", Z: ");
+    Serial.print(a.acceleration.z);
+    Serial.print(" m/s^2");
+
+    Serial.print(" | Rotation X: ");
+    Serial.print(g.gyro.x);
+    Serial.print(", Y: ");
+    Serial.print(g.gyro.y);
+    Serial.print(", Z: ");
+    Serial.print(g.gyro.z);
+    Serial.print(" rad/s");
+
+    Serial.print(" | Temperature: ");
+    Serial.print(temp.temperature);
+    Serial.println(" degC");
+
+    Serial.println("");
+    vTaskDelay(2000);
+  }
+}
+
 //----------------------------------FREERTOS SETUP------------------------------------//
 
 
@@ -536,6 +733,8 @@ void setup ( void )
 #ifdef SERVICE_MODE
   xTaskCreate(gyroscope_data, "gyroscope data", 2048, NULL, 2, NULL);
 #endif
+  xTaskCreate(telnet_server, "telnet server", 4096, NULL, 2, NULL);
+  xTaskCreate(mpu6050_data, "get data from gyroscope", 8192, NULL, 2, NULL);
 }
  
 void loop ( void )  
