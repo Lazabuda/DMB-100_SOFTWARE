@@ -1,7 +1,8 @@
 #include "RTOS_tasks.h"
 #include "func.h"
 
-#define SERVICE_MODE
+#define SERVICE_MODE //Uncomment for service mode
+//#define GYROSCOPE //Uncomment if you use gyroscope on the PCB
 
 //---------------------GLOBAL VARIABLES---------------------------//
 
@@ -37,6 +38,9 @@ char date_time [50] = "";
 
 // DEFINE VARIABLES FOR BARCODE SCANNER
 char barcode_data[BARCODE_DATA_SIZE] = "";
+
+// GYRO DATA
+char gyro_data[GYRO_DATA_SIZE] = "";
 
 // DEFINE BUTTON FLAGS
 int left_up_button; // FREE BUTTON
@@ -150,7 +154,7 @@ void task_button(void *pvParameters) // create button RTOS task
 
 void show_display(void *pvParameters) // create display menu task
 {
-  Serial.begin(9600);
+  Serial.begin(115200);
   u8g2. begin ( ) ;
   u8g2. setContrast  (10) ;
   u8g2. enableUTF8Print ( ) ;
@@ -495,28 +499,22 @@ void barcode_scanner(void *pvParameters)
 
 void gyroscope_data(void *pvParameters)
 {
-  Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
+  Serial2.begin(115200, SERIAL_8N1, RXD2, TXD2);
   int data_symbol;
   while (1)
   {
     if (Serial2.available()) 
     {
       data_symbol = 0;
-      while (Serial2.available() && (data_symbol < BARCODE_DATA_SIZE))
+      while (Serial2.available() && (data_symbol < GYRO_DATA_SIZE))
         {
-          barcode_data[data_symbol] = (char(Serial2.read()));
+          gyro_data[data_symbol] = (char(Serial2.read()));
           data_symbol++;
         }
-      Serial.println(barcode_data);
-#ifndef SERVICE_MODE
-      if (data_symbol > 5)
-      {
-        flag = 1;
-      }
-#endif
+      Serial.print(gyro_data);
     }
     else
-      vTaskDelay(1000 / portTICK_PERIOD_MS);
+      vTaskDelay(500 / portTICK_PERIOD_MS);
     
   }
 }
@@ -550,51 +548,81 @@ void telnet_server(void *pvParameters)
   Serial.print("Ready! Use port 23 to connect.");
   while (1)
   {
-    delay(200);
-    if (WiFi.status() != WL_CONNECTED) 
+    if (xSemaphoreTake(mutex_wait, portMAX_DELAY) == pdTRUE)
     {
-      Serial.println("WiFi not connected! Retrying ...");
-      if (Client) Client.stop();
-    }
-    if (Server.hasClient()) { //check if there are any new clients
-    Client = Server.available();
-    if (!Client) Serial.println("available broken");
-    Serial.print("New client: ");
-    Serial.println(Client.remoteIP());
-    }
+      if (WiFi.status() != WL_CONNECTED) // Check if WiFi is connected
+      {
+        Serial.println("WiFi not connected! Retrying ...");
+        if (Client) Client.stop();
+      }
+      if (Server.hasClient()) { //check if there are any new clients
+      Client = Server.available();
+      if (!Client) Serial.println("available broken");  // If Client = false, print message
+      Serial.print("New client: ");
+      Serial.println(Client.remoteIP());
+      }
 
-    if (Client && Client.connected()) 
-    { //check clients for data
-      if (Client.available()) 
-    {
-    while (Client.available())
-    Serial.write(Client.read()); //get data from the telnet client and push it to the UART
+      if (Client && Client.connected()) 
+      { //check clients for data
+        if (Client.available()) 
+      {
+      
+      while (Client.available())
+      Serial.write(Client.read()); //get data from the telnet client and push it to the UART
+      }
+      }
+      else if (Client) Client.stop();
+      char scales_data[250];
+      sprintf(scales_data, "%s %s %s %.2lf %s %.2lf %s", \
+      "Date/Time: ", date_time, \
+      "Reading1: ", reading1, \
+      "Reading2: ", reading2, gyro_data);
+      size_t len = strlen(scales_data);
+      //Client.write(scales_data, 70+sizeof(gyro_data));
+      Client.write(scales_data, len);
+      Serial.println(scales_data);
+      memset(scales_data, '\0', sizeof(scales_data));
+      /*
+      if (Serial2.available())
+      { //check UART for data
+        //size_t len = Serial2.available();
+        char sbuf[len];
+        char scales_data[70];
+        Serial2.readBytes(sbuf, len);
+        sprintf(scales_data, "%s %s %s %.2lf %s %.2lf %s", \
+        "Date/Time: ", date_time, \
+        "Reading1: ", reading1, \
+        "Reading2: ", reading2, sbuf);
+        Client.write(scales_data, 70+len);
+        memset(gyro_data, '\0', sizeof(gyro_data));
+        //Client.write(sbuf, len);
+      }
+      */
+      //while (Client.available()) Serial2.write(Client.read());
+      /*
+      if (Serial2.available())
+      {
+        size_t len = Serial2.available();
+        if (len == 0);
+        char sbuf[len];
+        Serial2.readBytes(sbuf, len);
+        Client.write(sbuf, len);
+      }
+      */
     }
-    }
-    else if (Client) Client.stop();
-
-    if (Serial.available())
-    { //check UART for data
-      size_t len = Serial.available();
-      char sbuf[len];
-      Serial.readBytes(sbuf, len);
-      if (Client && Client.connected()) Client.write(sbuf, len);
-    }
-    while (Client.available()) Serial2.write(Client.read());
-    size_t len = Serial2.available();
-    if (len == 0);
-    char sbuf[len];
-    Serial2.readBytes(sbuf, len);
-    Client.write(sbuf, len);
-    vTaskDelay(5);
+    xSemaphoreGive(mutex_wait);
+    vTaskDelay(500);
   }
-  
+
 }
 
 //--------------------------------GET DETA FROM MPU6050-------------------------------//
 
 void mpu6050_data(void *pvParameters)
 {
+#ifndef GYROSCOPE
+  vTaskDelete(NULL);
+#endif
   while (!Serial)
     delay(10); // will pause Zero, Leonardo, etc until serial console opens
 
@@ -682,6 +710,7 @@ void mpu6050_data(void *pvParameters)
     mpu.getEvent(&a, &g, &temp);
 
     /* Print out the values */
+    /*
     Serial.print("Date/Time: ");
     Serial.print(date_time);
     Serial.print(" | Reading1: ");
@@ -709,7 +738,21 @@ void mpu6050_data(void *pvParameters)
     Serial.println(" degC");
 
     Serial.println("");
-    vTaskDelay(2000);
+    */
+    char scales_data[200] = "";
+    sprintf(scales_data, "%s %s %s %.2lf %s %.2lf %s %.2f %s %.2f %s %.2f %s %s %.2f %s %.2f %s %.2f %s %s %.2f %s", \
+    "Date/Time: ", date_time, \
+    "Reading1: ", reading1, \
+    "Reading2: ", reading2, \
+    "Acceleration X: ", a.acceleration.x, \
+    "Y: ", a.acceleration.y, \
+    ", Z: ", a.acceleration.z, " m/s^2", \
+    "Rotation X: ", g.gyro.x, \
+    ", Y: ", g.gyro.y, \
+    ", Z: ", g.gyro.z, " rad/s", \
+    "Temperature: ", temp.temperature, " degC");
+    Serial.println(scales_data);
+    vTaskDelay(500);
   }
 }
 
@@ -733,7 +776,7 @@ void setup ( void )
 #ifdef SERVICE_MODE
   xTaskCreate(gyroscope_data, "gyroscope data", 2048, NULL, 2, NULL);
 #endif
-  xTaskCreate(telnet_server, "telnet server", 4096, NULL, 2, NULL);
+  xTaskCreate(telnet_server, "telnet server", 8192, NULL, 2, NULL);
   xTaskCreate(mpu6050_data, "get data from gyroscope", 8192, NULL, 2, NULL);
 }
  
