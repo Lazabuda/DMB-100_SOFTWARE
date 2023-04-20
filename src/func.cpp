@@ -91,16 +91,6 @@ void append_data_to_log()
   if(!SD.begin())
   {
     Serial.println("Card Mount Failed");
-    u8g2. firstPage ( ) ;
-    do
-    {
-      u8g2.setFont(u8g2_font_t0_16b_tf);
-      u8g2.setCursor(15, 15);
-      u8g2.print("SD card ERROR");
-      vTaskDelay(100 / portTICK_PERIOD_MS);
-    }
-    while ( u8g2.nextPage() );
-    return;
   }
   else
   {

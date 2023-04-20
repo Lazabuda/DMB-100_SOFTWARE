@@ -38,7 +38,6 @@ void show_current_weight(void *pvParameters);
 void barcode_scanner(void *pvParameters);
 void gyroscope_data(void *pvParameters);
 void telnet_server(void *pvParameters);
-void mpu6050_data(void *pvParameters);
 
 
  

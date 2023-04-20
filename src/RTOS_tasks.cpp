@@ -316,10 +316,26 @@ void show_display(void *pvParameters) // create display menu task
           if (task_counter == 0)
           {
             //write_to_sd();
-            append_data_to_log();
-            vTaskDelay(30 / portTICK_PERIOD_MS);
-            memset(barcode_data, '\0', sizeof(barcode_data));
-            task_counter ++;
+            if (!(is_bit_set(0)))
+            {
+              append_data_to_log();
+              vTaskDelay(30 / portTICK_PERIOD_MS);
+              memset(barcode_data, '\0', sizeof(barcode_data));
+              task_counter ++;
+            }
+            else
+            {
+              u8g2. firstPage ( ) ;
+              do
+              {
+                u8g2.setFont(u8g2_font_t0_16b_tf);
+                u8g2.setCursor(15, 15);
+                u8g2.print("SD card ERROR");
+                vTaskDelay(100 / portTICK_PERIOD_MS);
+              }
+              while ( u8g2.nextPage() );
+            }
+            
           }
           
         }
@@ -503,18 +519,21 @@ void gyroscope_data(void *pvParameters)
   int data_symbol;
   while (1)
   {
-    if (Serial2.available()) 
+    if (xSemaphoreTake(mutex_wait, portMAX_DELAY) == pdTRUE)
     {
-      data_symbol = 0;
-      while (Serial2.available() && (data_symbol < GYRO_DATA_SIZE))
-        {
-          gyro_data[data_symbol] = (char(Serial2.read()));
-          data_symbol++;
-        }
-      Serial.print(gyro_data);
+      if (Serial2.available()) 
+      {
+        data_symbol = 0;
+        while (Serial2.available() && (data_symbol < GYRO_DATA_SIZE))
+          {
+            gyro_data[data_symbol] = (char(Serial2.read()));
+            data_symbol++;
+          }
+        Serial.print(gyro_data);
+      }
     }
-    else
-      vTaskDelay(500 / portTICK_PERIOD_MS);
+    xSemaphoreGive(mutex_wait);
+    vTaskDelay(100 / portTICK_PERIOD_MS);
     
   }
 }
@@ -523,24 +542,26 @@ void gyroscope_data(void *pvParameters)
 
 void telnet_server(void *pvParameters)
 {
+  //vTaskDelete(NULL);
   int8_t i;
   //Serial.begin(115200);
   Serial.print("\nAttaching to WiFi '" + String(ssid) + String("' ..."));
 
   WiFi.begin(ssid, password);
+  
   Serial.print(" attached to WiFi.\nConnecting to network ... ");
   for (i = 60; i != 0; i--) 
   {
     if (WiFi.status() == WL_CONNECTED) break;
-    delay(333);
+    vTaskDelay(50);
   }
   if (i == 0) 
   {
     Serial.println("Network connection failed!\nRestarting ESP32!");
-    delay(1000);
+    vTaskDelay(50);
     ESP.restart();
   }
-
+  
   Serial.print(" network connected.\nLocal IP address: ");
   Serial.println(WiFi.localIP());
   Server.begin();
@@ -548,8 +569,9 @@ void telnet_server(void *pvParameters)
   Serial.print("Ready! Use port 23 to connect.");
   while (1)
   {
-    if (xSemaphoreTake(mutex_wait, portMAX_DELAY) == pdTRUE)
-    {
+    //if (xSemaphoreTake(mutex_wait, portMAX_DELAY) == pdTRUE)
+    //{
+      
       if (WiFi.status() != WL_CONNECTED) // Check if WiFi is connected
       {
         Serial.println("WiFi not connected! Retrying ...");
@@ -561,199 +583,24 @@ void telnet_server(void *pvParameters)
       Serial.print("New client: ");
       Serial.println(Client.remoteIP());
       }
-
-      if (Client && Client.connected()) 
-      { //check clients for data
-        if (Client.available()) 
+      if (Client.connected())
       {
-      
-      while (Client.available())
-      Serial.write(Client.read()); //get data from the telnet client and push it to the UART
-      }
-      }
-      else if (Client) Client.stop();
-      char scales_data[250];
-      sprintf(scales_data, "%s %s %s %.2lf %s %.2lf %s", \
-      "Date/Time: ", date_time, \
-      "Reading1: ", reading1, \
-      "Reading2: ", reading2, gyro_data);
-      size_t len = strlen(scales_data);
-      //Client.write(scales_data, 70+sizeof(gyro_data));
-      Client.write(scales_data, len);
-      Serial.println(scales_data);
-      memset(scales_data, '\0', sizeof(scales_data));
-      /*
-      if (Serial2.available())
-      { //check UART for data
-        //size_t len = Serial2.available();
-        char sbuf[len];
-        char scales_data[70];
-        Serial2.readBytes(sbuf, len);
+        char scales_data[250];
         sprintf(scales_data, "%s %s %s %.2lf %s %.2lf %s", \
         "Date/Time: ", date_time, \
         "Reading1: ", reading1, \
-        "Reading2: ", reading2, sbuf);
-        Client.write(scales_data, 70+len);
-        memset(gyro_data, '\0', sizeof(gyro_data));
-        //Client.write(sbuf, len);
+        "Reading2: ", reading2, gyro_data);
+        Client.println(scales_data);
+        Serial.println(scales_data);
+        memset(scales_data, '\0', sizeof(scales_data));
+        
       }
-      */
-      //while (Client.available()) Serial2.write(Client.read());
-      /*
-      if (Serial2.available())
-      {
-        size_t len = Serial2.available();
-        if (len == 0);
-        char sbuf[len];
-        Serial2.readBytes(sbuf, len);
-        Client.write(sbuf, len);
-      }
-      */
-    }
-    xSemaphoreGive(mutex_wait);
-    vTaskDelay(500);
+      vTaskDelay(500);
+    //}
+    //xSemaphoreGive(mutex_wait);
+    //vTaskDelay(1000);
   }
 
-}
-
-//--------------------------------GET DETA FROM MPU6050-------------------------------//
-
-void mpu6050_data(void *pvParameters)
-{
-#ifndef GYROSCOPE
-  vTaskDelete(NULL);
-#endif
-  while (!Serial)
-    delay(10); // will pause Zero, Leonardo, etc until serial console opens
-
-  Serial.println("Adafruit MPU6050 test!");
-
-  // Try to initialize!
-  if (!mpu.begin()) 
-  {
-    Serial.println("Failed to find MPU6050 chip");
-    while (1) 
-    {
-      delay(10);
-    }
-  }
-  Serial.println("MPU6050 Found!");
-
-  mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
-  Serial.print("Accelerometer range set to: ");
-  switch (mpu.getAccelerometerRange()) 
-  {
-    case MPU6050_RANGE_2_G:
-      Serial.println("+-2G");
-      break;
-    case MPU6050_RANGE_4_G:
-      Serial.println("+-4G");
-      break;
-    case MPU6050_RANGE_8_G:
-      Serial.println("+-8G");
-      break;
-    case MPU6050_RANGE_16_G:
-      Serial.println("+-16G");
-      break;
-  }
-  mpu.setGyroRange(MPU6050_RANGE_500_DEG);
-  Serial.print("Gyro range set to: ");
-  switch (mpu.getGyroRange()) 
-  {
-    case MPU6050_RANGE_250_DEG:
-      Serial.println("+- 250 deg/s");
-      break;
-    case MPU6050_RANGE_500_DEG:
-      Serial.println("+- 500 deg/s");
-      break;
-    case MPU6050_RANGE_1000_DEG:
-      Serial.println("+- 1000 deg/s");
-      break;
-    case MPU6050_RANGE_2000_DEG:
-      Serial.println("+- 2000 deg/s");
-      break;
-  }
-
-  mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
-  Serial.print("Filter bandwidth set to: ");
-  switch (mpu.getFilterBandwidth()) 
-  {
-    case MPU6050_BAND_260_HZ:
-      Serial.println("260 Hz");
-      break;
-    case MPU6050_BAND_184_HZ:
-      Serial.println("184 Hz");
-      break;
-    case MPU6050_BAND_94_HZ:
-      Serial.println("94 Hz");
-      break;
-    case MPU6050_BAND_44_HZ:
-      Serial.println("44 Hz");
-      break;
-    case MPU6050_BAND_21_HZ:
-      Serial.println("21 Hz");
-      break;
-    case MPU6050_BAND_10_HZ:
-      Serial.println("10 Hz");
-      break;
-    case MPU6050_BAND_5_HZ:
-      Serial.println("5 Hz");
-      break;
-  }
-
-  Serial.println("");
-  delay(100);
-  while(1)
-  {
-    /* Get new sensor events with the readings */
-    sensors_event_t a, g, temp;
-    mpu.getEvent(&a, &g, &temp);
-
-    /* Print out the values */
-    /*
-    Serial.print("Date/Time: ");
-    Serial.print(date_time);
-    Serial.print(" | Reading1: ");
-    Serial.print(reading1);
-    Serial.print(" | Reading2: ");
-    Serial.print(reading2);
-    Serial.print(" | Acceleration X: ");
-    Serial.print(a.acceleration.x);
-    Serial.print(", Y: ");
-    Serial.print(a.acceleration.y);
-    Serial.print(", Z: ");
-    Serial.print(a.acceleration.z);
-    Serial.print(" m/s^2");
-
-    Serial.print(" | Rotation X: ");
-    Serial.print(g.gyro.x);
-    Serial.print(", Y: ");
-    Serial.print(g.gyro.y);
-    Serial.print(", Z: ");
-    Serial.print(g.gyro.z);
-    Serial.print(" rad/s");
-
-    Serial.print(" | Temperature: ");
-    Serial.print(temp.temperature);
-    Serial.println(" degC");
-
-    Serial.println("");
-    */
-    char scales_data[200] = "";
-    sprintf(scales_data, "%s %s %s %.2lf %s %.2lf %s %.2f %s %.2f %s %.2f %s %s %.2f %s %.2f %s %.2f %s %s %.2f %s", \
-    "Date/Time: ", date_time, \
-    "Reading1: ", reading1, \
-    "Reading2: ", reading2, \
-    "Acceleration X: ", a.acceleration.x, \
-    "Y: ", a.acceleration.y, \
-    ", Z: ", a.acceleration.z, " m/s^2", \
-    "Rotation X: ", g.gyro.x, \
-    ", Y: ", g.gyro.y, \
-    ", Z: ", g.gyro.z, " rad/s", \
-    "Temperature: ", temp.temperature, " degC");
-    Serial.println(scales_data);
-    vTaskDelay(500);
-  }
 }
 
 //----------------------------------FREERTOS SETUP------------------------------------//
@@ -762,10 +609,11 @@ void mpu6050_data(void *pvParameters)
 void setup ( void )  
 { 
   mutex_wait = xSemaphoreCreateMutex();
+
   //esp_task_wdt_init(WDT_TIMEOUT, true); //enable panic so ESP32 restarts
   //esp_task_wdt_add(NULL); //add current thread to WDT watch
   //esp_task_wdt_reset();
-  xTaskCreate(task_button, "buttons", 4096, NULL, 2, NULL);
+  xTaskCreate(task_button, "buttons", 4096, NULL, 3, NULL);
   xTaskCreate(show_display, "show_display", 8192, NULL, 2, NULL);
   xTaskCreate(getweight1, "getweight1", 2048, NULL, 2, NULL);
   xTaskCreate(getweight2, "getweight2", 2048, NULL, 2, NULL);
@@ -777,7 +625,6 @@ void setup ( void )
   xTaskCreate(gyroscope_data, "gyroscope data", 2048, NULL, 2, NULL);
 #endif
   xTaskCreate(telnet_server, "telnet server", 8192, NULL, 2, NULL);
-  xTaskCreate(mpu6050_data, "get data from gyroscope", 8192, NULL, 2, NULL);
 }
  
 void loop ( void )  
