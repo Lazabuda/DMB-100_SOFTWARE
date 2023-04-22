@@ -11,7 +11,7 @@ const int LOADCELL1_DOUT_PIN = 32;
 const int LOADCELL1_SCK_PIN = 33;
 const int LOADCELL2_DOUT_PIN = 25;
 const int LOADCELL2_SCK_PIN = 26;
-char scales_data[350];
+
 // CLASSES
 HX711 scale1; // HX711
 HX711 scale2; //  HX711 (2)
@@ -540,11 +540,6 @@ void gyroscope_data(void *pvParameters)
         Serial.print("The packet is: ");
         Serial.print(gyro_data);
         Serial.println("The end of the packet");
-        
-        snprintf(scales_data, sizeof(scales_data), "%s %s %s %.2lf %s %.2lf %s", \
-        "Date/Time:", date_time, \
-        "Reading1:", reading1, \
-        "Reading2:", reading2, " ");
       }
       xSemaphoreGive(mutex_wait);
       vTaskDelay(100 / portTICK_PERIOD_MS); 
@@ -562,7 +557,6 @@ void gyroscope_data(void *pvParameters)
 
 void telnet_server(void *pvParameters)
 {
-  //vTaskDelete(NULL);
   int8_t i;
   //Serial.begin(115200);
   Serial.print("\nAttaching to WiFi '" + String(ssid) + String("' ..."));
@@ -597,8 +591,8 @@ void telnet_server(void *pvParameters)
         Serial.println("WiFi not connected! Retrying ...");
         if (Client) Client.stop();
       }
-      if (Server.hasClient()) 
-      { //check if there are any new clients
+      if (Server.hasClient()) //check if there are any new clients
+      {
         Client = Server.available();
         if (!Client) Serial.println("available broken");  // If Client = false, print message
         Serial.print("New client: ");
@@ -606,16 +600,15 @@ void telnet_server(void *pvParameters)
       }
       if (Client.connected())
       {
+        char scales_data[350];
+        snprintf(scales_data, sizeof(scales_data), "%s %s %s %.2lf %s %.2lf %s", \
+        "Date/Time:", date_time, \
+        "Reading1:", reading1, \
+        "Reading2:", reading2, " ");
         strcat(scales_data, gyro_data);
-        //Client.println(" ");
         Client.println(scales_data);
-        //Client.print(gyro_data);
-
-        //Serial.println(scales_data);
-        //memset(gyro_data, 0, sizeof(gyro_data));
-        gyro_data[0] = 0;
+        memset(gyro_data, 0, sizeof(gyro_data));
       }
-      //vTaskDelay(500);
     }
     xSemaphoreGive(mutex_wait);
     vTaskDelay(500);
@@ -643,9 +636,8 @@ void setup ( void )
   xTaskCreate(barcode_scanner, "barcode_scanner", 2048, NULL, 2, NULL);
 #ifdef SERVICE_MODE
   xTaskCreate(gyroscope_data, "gyroscope data", 2048, NULL, 2, NULL);
-#endif
-  //xTaskCreate(telnet_server, "telnet server", 8192, NULL, 2, NULL);
   xTaskCreatePinnedToCore(telnet_server, "telnet server", 8192, NULL, 2, NULL, 1);
+#endif
 }
  
 void loop ( void )  
