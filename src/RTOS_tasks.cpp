@@ -629,5 +629,5 @@ void setup ( void )
  
 void loop ( void )  
 {
-
+  vTaskDelay(50);
 }
