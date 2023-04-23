@@ -527,22 +527,22 @@ void gyroscope_data(void *pvParameters)
         data_symbol = 0;
         while (Serial2.available() && (data_symbol < GYRO_DATA_SIZE))
         {
+
           gyro_data[data_symbol] = (char(Serial2.read()));
           if (gyro_data[data_symbol] == 'Q')
           {
             gyro_data[data_symbol] = '\r';
-            Serial2.end();
-            Serial2.begin(115200, SERIAL_8N1, RXD2, TXD2);
+            //Serial2.end();
+            //Serial2.begin(115200, SERIAL_8N1, RXD2, TXD2);
             break;
           }
           data_symbol++;
         }
-        Serial.print("The packet is: ");
-        Serial.print(gyro_data);
-        Serial.println("The end of the packet");
+        Serial.println(gyro_data);
       }
       xSemaphoreGive(mutex_wait);
-      vTaskDelay(100 / portTICK_PERIOD_MS); 
+      vTaskDelay(300 / portTICK_PERIOD_MS);
+      Serial2.println('B');
     }
     else
     {
@@ -607,6 +607,7 @@ void telnet_server(void *pvParameters)
         "Reading2:", reading2, " ");
         strcat(scales_data, gyro_data);
         Client.println(scales_data);
+        Serial.println(scales_data);
         memset(gyro_data, 0, sizeof(gyro_data));
       }
     }
@@ -635,12 +636,12 @@ void setup ( void )
   xTaskCreate(show_current_weight, "current_weight", 1024, NULL, 2, NULL);
   xTaskCreate(barcode_scanner, "barcode_scanner", 2048, NULL, 2, NULL);
 #ifdef SERVICE_MODE
-  xTaskCreate(gyroscope_data, "gyroscope data", 2048, NULL, 2, NULL);
-  xTaskCreatePinnedToCore(telnet_server, "telnet server", 8192, NULL, 2, NULL, 1);
+  xTaskCreate(gyroscope_data, "gyroscope data", 4096, NULL, 2, NULL);
+  xTaskCreatePinnedToCore(telnet_server, "telnet server", 8192, NULL, 3, NULL, 1);
 #endif
 }
  
 void loop ( void )  
 {
-
+  vTaskDelay(100);
 }
