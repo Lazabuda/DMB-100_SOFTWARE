@@ -532,8 +532,6 @@ void gyroscope_data(void *pvParameters)
           if (gyro_data[data_symbol] == 'Q')
           {
             gyro_data[data_symbol] = '\r';
-            //Serial2.end();
-            //Serial2.begin(115200, SERIAL_8N1, RXD2, TXD2);
             break;
           }
           data_symbol++;
@@ -643,5 +641,5 @@ void setup ( void )
  
 void loop ( void )  
 {
-  vTaskDelay(100);
+  vTaskDelay(50);
 }
