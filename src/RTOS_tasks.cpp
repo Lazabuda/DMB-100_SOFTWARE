@@ -27,7 +27,7 @@ double current_weight;
 double coefficient;
 double mas[CALC_ARRAY_SIZE];
 double average = 0;
-int flag_weighting;
+//int flag_weighting;
 volatile int flag;
 bool service_mode = false;
 
@@ -49,6 +49,19 @@ int left_up_button; // FREE BUTTON
 int left_down_button; // CALIBRATE BUTTON
 int right_up_button; // SAVE BUTTON
 int right_down_button; // WEIGHTING BUTTON
+
+// Events (FLAGS)
+static EventGroupHandle_t scales_flags;
+static EventBits_t flags;
+
+
+
+#define WEIGHTING BIT0 // Allow Weighting flag
+#define SD_CARD_ERROR BIT1 // SD Card error flag
+#define READING1_OOR_ERROR BIT2 // Reading 1 out of range error flag
+#define BARDODE_DATA_FLAG BIT3 // Is data in barcode scanner buffer
+#define FINAL_WEIGHT BIT4 // Final weight enable flag
+
 
 
 
@@ -156,6 +169,8 @@ void task_button(void *pvParameters) // create button RTOS task
 
 void show_display(void *pvParameters) // create display menu task
 {
+  scales_flags = xEventGroupCreate();
+  flags = xEventGroupClearBits(scales_flags, WEIGHTING | SD_CARD_ERROR | READING1_OOR_ERROR | BARDODE_DATA_FLAG | FINAL_WEIGHT);
   Serial.begin(115200);
   u8g2. begin ( ) ;
   u8g2. setContrast  (10) ;
@@ -163,12 +178,14 @@ void show_display(void *pvParameters) // create display menu task
   if(!SD.begin())
   {
     Serial.println("Card Mount Failed");
-    set_bit(0);
+    //set_bit(0);
+    flags  = xEventGroupSetBits(scales_flags, SD_CARD_ERROR );
   }
   write_log_header(SD, "/log.csv");
   int i = 0;
   while (true)
   {
+    flags = xEventGroupGetBits(scales_flags);
     if (i < 1)
     {
       start_page();
@@ -198,13 +215,15 @@ void show_display(void *pvParameters) // create display menu task
     u8g2. firstPage ( ) ;
     do  
     {
-      if (is_bit_set(0) == false)
+      //if (is_bit_set(0) == false)
+      if ((flags & SD_CARD_ERROR) != SD_CARD_ERROR)
       {
         u8g2.setFont(u8g2_font_siji_t_6x10);
         u8g2.drawGlyph(55, 10, 0xE1D6);
       }
       
-      if (is_bit_set(0))
+      //if (is_bit_set(0))
+      if ((flags & SD_CARD_ERROR) == SD_CARD_ERROR)
       {
         u8g2.setFont(u8g2_font_siji_t_6x10);
         u8g2.setCursor(55, 10);
@@ -230,7 +249,8 @@ void show_display(void *pvParameters) // create display menu task
         u8g2.print("SERVICE MODE");
 //#endif      
       }
-      if (flag == 0)
+      //if (flag == 0)
+      if ((flags & BARDODE_DATA_FLAG) != BARDODE_DATA_FLAG)
       {
         u8g2.setFont(u8g2_font_fivepx_tr);
         u8g2.setCursor(5, 30);
@@ -240,7 +260,8 @@ void show_display(void *pvParameters) // create display menu task
         u8g2.setCursor(80, 30);
         u8g2.print(reading2print); 
       }
-      if (flag == 1)
+      //if (flag == 1)
+      if ((flags & BARDODE_DATA_FLAG) == BARDODE_DATA_FLAG)
       {
         u8g2.setFont(u8g2_font_fivepx_tr);
         u8g2.setCursor(5, 30);
@@ -292,14 +313,15 @@ void show_display(void *pvParameters) // create display menu task
             {
               service_mode = true;
               Serial.println("service_mode = true");
-              vTaskDelay(30);
+              //memset(barcode_data, '\0', sizeof(barcode_data));
+              vTaskDelay(200);
               break;
             }
             if (service_mode == true)
             {
               service_mode = false;
               Serial.println("service_mode = false");
-              vTaskDelay(30);
+              vTaskDelay(200);
               break;
             }
           }
@@ -389,7 +411,8 @@ void show_display(void *pvParameters) // create display menu task
         if (xSemaphoreTake(mutex_wait, portMAX_DELAY) == pdTRUE) 
         {
           u8g2.drawButtonUTF8(85, 64, U8G2_BTN_INV|U8G2_BTN_BW2, 0,  2,  2, "WEIGHTING" );
-          flag_weighting = 1;
+          flags  = xEventGroupSetBits(scales_flags, FINAL_WEIGHT );
+          //flag_weighting = 1;
         }
         xSemaphoreGive(mutex_wait);
       }
@@ -402,7 +425,7 @@ void show_display(void *pvParameters) // create display menu task
       
     }
     while ( u8g2.nextPage() );
-    vTaskDelay(30 / portTICK_PERIOD_MS); // Without this delay, Watchdog Timer always gets triggered
+    vTaskDelay(100 / portTICK_PERIOD_MS); // Without this delay, Watchdog Timer always gets triggered
   }
 
 }
@@ -446,14 +469,17 @@ void get_final_weight(void *pvParameters)
   { 
     if (service_mode == false)
     {
-      if (flag_weighting == 1)
+      //if (flag_weighting == 1)
+      if ((flags & FINAL_WEIGHT) == FINAL_WEIGHT)
       {
         for (int i = 0; i < CALC_ARRAY_SIZE; i++) {mas[i] = 0;}
         average = 0;
         final_weight = 0;
-        flag_weighting = 0;
+        //flag_weighting = 0;
+        flags = xEventGroupClearBits(scales_flags, FINAL_WEIGHT);
       }
-      while (flag_weighting == 0) // Here is the method, which we use to calculate
+      //while (flag_weighting == 0) // Here is the method, which we use to calculate
+      while ((flags & FINAL_WEIGHT) != FINAL_WEIGHT)
       {
         median_calc();
       }
@@ -468,7 +494,8 @@ void median_calc()
   for (int i = 0; i < CALC_ARRAY_SIZE; i++)
   {
     mas[i] = (reading2*COMPENSATION_WEIGHT*coefficient)/reading1;
-    if (flag_weighting == 1)
+    //if (flag_weighting == 1)
+    if ((flags & FINAL_WEIGHT) == FINAL_WEIGHT)
       break;
     vTaskDelay(25 / portTICK_PERIOD_MS);
   }
@@ -554,7 +581,7 @@ void barcode_scanner(void *pvParameters)
         Serial.println(barcode_data);
         if (data_symbol > 5)
         {
-          flag = 1;
+          flags  = xEventGroupSetBits(scales_flags, BARDODE_DATA_FLAG );
         }
       }
       else
