@@ -39,7 +39,7 @@ extern double final_weight;
 extern double current_weight;
 extern double coefficient;
 extern char barcode_data[BARCODE_DATA_SIZE];
-extern int error_flag;
+//extern int error_flag;
 
 extern U8G2_ST7565_ERC12864_1_4W_SW_SPI u8g2;
 
@@ -52,6 +52,6 @@ void average_calc();
 void median_calc();
 void append_data_to_log();
 void write_log_header(fs::FS &fs, const char * path);
-int set_bit(int num_bit);
-int is_bit_set(int num_bit);
+//int set_bit(int num_bit);
+//int is_bit_set(int num_bit);
 void is_error();

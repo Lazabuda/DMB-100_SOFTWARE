@@ -213,7 +213,7 @@ void second_page()
 int cmpfunc (const void * a, const void * b) {
    return ( *(double*)a - *(double*)b );
 }
-
+/*
 void is_error()
 { 
   u8g2. firstPage ( ) ;
@@ -232,7 +232,7 @@ void is_error()
   while ( u8g2.nextPage() );
   
   
-  /*
+  
   if (is_bit_set(2))
   {
     u8g2.setFont(u8g2_font_siji_t_6x10);
@@ -240,8 +240,8 @@ void is_error()
     u8g2.print("RTC ERR");
   }
   */
-}
-
+//}
+/*
 int set_bit(int num_bit)
 {
   error_flag |= (1 << num_bit); // set
@@ -261,3 +261,4 @@ int is_bit_set(int num_bit)
   }
   return true;
 }
+*/
