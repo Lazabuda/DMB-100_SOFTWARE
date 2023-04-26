@@ -66,10 +66,6 @@ static EventBits_t flags;
 
 
 
-
-
-
-
 // DEFINE PINOUTS FOR DISPLAY: scl = 14 // si = 13 // cs = 15 // rs = 12 // rse = 27
 U8G2_ST7565_ERC12864_1_4W_SW_SPI u8g2 ( U8G2_R0, /* scl=*/  14 , /* si=*/  13 , /* cs=*/  15 , /* rs=*/  12 , /* rse=*/  27 ) ;
 
@@ -219,10 +215,15 @@ void show_display(void *pvParameters) // create display menu task
     u8g2. firstPage ( ) ;
     do  
     {
+      if ((flags & RTC_ERROR) != RTC_ERROR)
+      {
+        u8g2.setFont(u8g2_font_siji_t_6x10); // Width 12, Height 12
+        u8g2.drawGlyph(66, 10, 0xE016);
+      }
       if ((flags & WIFI_DATA) == WIFI_DATA)
       {
         u8g2.setFont(u8g2_font_siji_t_6x10); // Width 12, Height 12
-        u8g2.drawGlyph(43, 10, 0xE12F);
+        u8g2.drawGlyph(44, 10, 0xE12F);
       }
       if ((flags & WIFI_FLAG) == WIFI_FLAG)
       {
@@ -236,12 +237,14 @@ void show_display(void *pvParameters) // create display menu task
         u8g2.drawGlyph(55, 10, 0xE1D6);
       }
       
+      
       //if (is_bit_set(0))
       if ((flags & SD_CARD_ERROR) == SD_CARD_ERROR)
       {
         u8g2.setFont(u8g2_font_siji_t_6x10);
-        u8g2.setCursor(55, 10);
-        u8g2.print("NO SD!");
+        u8g2.drawGlyph(55, 10, 0xE1C4);
+        //u8g2.setCursor(55, 10);
+        //u8g2.print("NO SD!");
       }
       if ((flags & SERVICE_MODE) != SERVICE_MODE)
       //if (service_mode == false)
