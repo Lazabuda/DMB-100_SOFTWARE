@@ -72,7 +72,7 @@ void appendFile(fs::FS &fs, const char * path)
   myFile.print(",");
   myFile.print(barcode_data);
   myFile.print(",");
-  myFile.print(current_weight);
+  myFile.print(current_weight_disp);
   myFile.print(",");
   myFile.print(coefficient);
   myFile.print(",");

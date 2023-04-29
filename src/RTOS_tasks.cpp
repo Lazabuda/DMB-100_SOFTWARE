@@ -1,8 +1,9 @@
 #include "RTOS_tasks.h"
 #include "func.h"
 
-//#define SERVICE_MODE //Uncomment for service mode
-//#define GYROSCOPE //Uncomment if you use gyroscope on the PCB
+//#define SERIAL_FOR_DEBUG // Uncomment for see SERIAL DEBUG MESSAGES
+//#define SERVICE_MODE // Uncomment for service mode
+//#define GYROSCOPE // Uncomment if you use gyroscope on the PCB
 
 //---------------------GLOBAL VARIABLES---------------------------//
 
@@ -23,7 +24,8 @@ double reading2;
 double reading1print;
 double reading2print;
 double final_weight;
-double current_weight;
+//double current_weight;
+double current_weight_disp;
 double coefficient;
 double mas[CALC_ARRAY_SIZE];
 double average = 0;
@@ -63,7 +65,11 @@ static EventBits_t flags;
 #define WIFI_FLAG BIT6 // If WiFi has been initialized, FLAG = 1
 #define WIFI_DATA BIT7 // If data is transmitting, FLAG = 1
 #define RTC_ERROR BIT8 // Real Time Clock error flag
+#define QUEUE_ERROR BIT9 // Data from load cells ERROR FLAG
 
+
+// Queues
+static QueueHandle_t reading_queue;
 
 
 // DEFINE PINOUTS FOR DISPLAY: scl = 14 // si = 13 // cs = 15 // rs = 12 // rse = 27
@@ -197,8 +203,8 @@ void show_display(void *pvParameters) // create display menu task
       //if (service_mode == false)
       {
 //#ifndef SERVICE_MODE
-        //second_page();
-        //vTaskDelay(5000);
+        second_page();
+        vTaskDelay(5000);
 //#endif
       }      
       coefficient = reading1/reading2; 
@@ -236,8 +242,6 @@ void show_display(void *pvParameters) // create display menu task
         u8g2.setFont(u8g2_font_siji_t_6x10); // Width 12, Height 12
         u8g2.drawGlyph(55, 10, 0xE1D6);
       }
-      
-      
       //if (is_bit_set(0))
       if ((flags & SD_CARD_ERROR) == SD_CARD_ERROR)
       {
@@ -289,7 +293,7 @@ void show_display(void *pvParameters) // create display menu task
 
       u8g2.setFont(u8g2_font_fivepx_tr);
       u8g2.setCursor(90, 20);
-      u8g2.print(current_weight, 2);
+      u8g2.print(current_weight_disp, 2);
 
       u8g2.setFont(u8g2_font_7x13B_tf);
       u8g2.setCursor(30, 45);
@@ -373,12 +377,14 @@ void show_display(void *pvParameters) // create display menu task
           coefficient = reading1/reading2;
           reading1print = reading1;
           reading2print = reading2;
+#ifdef SERIAL_FOR_DEBUG
           Serial.print("Reading 1 value - ");
           Serial.println(reading1);
           Serial.print("Reading 2 value - ");
           Serial.println(reading2);
           Serial.print("Coefficient value - ");
           Serial.println(coefficient, 4);
+#endif
           flags = xEventGroupClearBits(scales_flags, BARDODE_DATA_FLAG);
           //flag = 0;
           vTaskDelay(20);
@@ -462,7 +468,7 @@ void show_display(void *pvParameters) // create display menu task
 }
 
 //------------------------------------WEIGHTING PROCESS FREERTOS TASKs------------------------------------//
-
+///*
 void getweight1(void *pvParameters)
 {
   scale1.begin(LOADCELL1_DOUT_PIN, LOADCELL1_SCK_PIN);
@@ -472,7 +478,9 @@ void getweight1(void *pvParameters)
   while (1)
   {
     reading1 = scale1.get_units(3);
-    vTaskDelay(25 / portTICK_PERIOD_MS);
+    Serial.print("Sent reading1                  -                  ");
+    Serial.println(reading1);
+    vTaskDelay(5 / portTICK_PERIOD_MS);
   }
 }
 
@@ -485,14 +493,55 @@ void getweight2(void *pvParameters)
   while (1)
   {
     reading2 = scale2.get_units(3);
-    vTaskDelay(25 / portTICK_PERIOD_MS);
+    Serial.print("Sent reading2                  -                  ");
+    Serial.println(reading2);
+    vTaskDelay(5 / portTICK_PERIOD_MS);
+  }
+}
+//*/
+
+
+void getweight(void *pvParameters)
+{
+  scale1.begin(LOADCELL1_DOUT_PIN, LOADCELL1_SCK_PIN);
+  scale1.set_scale(1);
+  scale1.tare();
+  scale2.begin(LOADCELL2_DOUT_PIN, LOADCELL2_SCK_PIN);
+  scale2.set_scale(1);
+  scale2.tare();
+  while (1)
+  {
+    if (xSemaphoreTake(mutex_wait, portMAX_DELAY) == pdTRUE)
+    {
+      double current_weight;
+      reading1 = scale1.get_units(3);
+      reading2 = scale2.get_units(3);
+      current_weight = (reading2*COMPENSATION_WEIGHT*coefficient)/reading1;
+#ifdef SERIAL_FOR_DEBUG      
+      Serial.print("Calculated value                 ");
+      Serial.println(current_weight);
+#endif
+      if (xQueueSend(reading_queue, &current_weight, portMAX_DELAY) == pdPASS) 
+      {
+#ifdef SERIAL_FOR_DEBUG
+        Serial.print("Value was sent to queue         ");
+        Serial.println(current_weight);
+#endif
+        //flags = xEventGroupSetBits(scales_flags, QUEUE_ERROR);
+        //Serial.println("Queue ERROR");
+      }
+    }
+    xSemaphoreGive(mutex_wait);
+    vTaskDelay(5 / portTICK_PERIOD_MS);
+    
   }
 }
 
-
+    
 
 void get_final_weight(void *pvParameters)
 {
+  
 //#ifdef SERVICE_MODE
     //vTaskDelete(NULL);
 //#endif  
@@ -525,7 +574,25 @@ void median_calc()
 {
   for (int i = 0; i < CALC_ARRAY_SIZE; i++)
   {
-    mas[i] = (reading2*COMPENSATION_WEIGHT*coefficient)/reading1;
+    double temp_weight;
+    if (xQueueReceive(reading_queue, &temp_weight, portMAX_DELAY) == pdPASS) 
+    {
+#ifdef SERIAL_FOR_DEBUG
+      Serial.print(i);
+      Serial.print("     Value received to queue:         ");
+      Serial.println(temp_weight);
+#endif
+      //flags = xEventGroupSetBits(scales_flags, QUEUE_ERROR);
+      //Serial.print("Calculation weight error");
+    }
+    //mas[i] = current_weight;
+    //Serial.print("Received value                  -                  ");
+    //Serial.println(current_weight);
+    mas[i] = temp_weight;
+    //mas[i] = (reading2*COMPENSATION_WEIGHT*coefficient)/reading1;
+    //Serial.print("Calculated value                  -                  ");
+    //Serial.println(mas[i]);
+    //mas[i] = temp_weight;
     //if (flag_weighting == 1)
     if ((flags & FINAL_WEIGHT) == FINAL_WEIGHT)
       break;
@@ -548,7 +615,7 @@ void show_current_weight(void *pvParameters)
     //{
     //  set_bit(1);
     //}
-      current_weight = (reading2*COMPENSATION_WEIGHT*coefficient)/reading1;
+      current_weight_disp = (reading2*COMPENSATION_WEIGHT*coefficient)/reading1;
       vTaskDelay(500 / portTICK_PERIOD_MS);
     }
     else
@@ -756,17 +823,19 @@ void telnet_server(void *pvParameters)
 void setup ( void )  
 { 
   mutex_wait = xSemaphoreCreateMutex();
+  reading_queue = xQueueCreate(5, sizeof(double));
 
   //esp_task_wdt_init(WDT_TIMEOUT, true); //enable panic so ESP32 restarts
   //esp_task_wdt_add(NULL); //add current thread to WDT watch
   //esp_task_wdt_reset();
   xTaskCreate(task_button, "buttons", 4096, NULL, 3, NULL);
   xTaskCreate(show_display, "show_display", 8192, NULL, 2, NULL);
-  xTaskCreate(getweight1, "getweight1", 2048, NULL, 2, NULL);
-  xTaskCreate(getweight2, "getweight2", 2048, NULL, 2, NULL);
+  //xTaskCreate(getweight1, "getweight1", 2048, NULL, 2, NULL);
+  //xTaskCreate(getweight2, "getweight2", 2048, NULL, 2, NULL);
+  xTaskCreate(getweight, "getweight", 2048, NULL, 5, NULL);
   xTaskCreate(get_final_weight, "get_final_weight", 2048, NULL, 2, NULL);
   xTaskCreate(get_time, "get_time", 2048, NULL, 2, NULL);
-  xTaskCreate(show_current_weight, "current_weight", 1024, NULL, 2, NULL);
+  xTaskCreate(show_current_weight, "current_weight", 1024, NULL, 3, NULL);
   xTaskCreate(barcode_scanner, "barcode_scanner", 2048, NULL, 2, NULL);
 //#ifdef SERVICE_MODE
   xTaskCreate(gyroscope_data, "gyroscope data", 4096, NULL, 2, NULL);

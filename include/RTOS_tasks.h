@@ -30,8 +30,9 @@ const char *password = "baku2020";
 
 void task_button(void *pvParameters);
 void show_display(void *pvParameters);
-void getweight1(void *pvParameters);
-void getweight2(void *pvParameters);
+//void getweight1(void *pvParameters);
+//void getweight2(void *pvParameters);
+void getweight(void *pvParameters);
 void get_final_weight(void *pvParameters);
 void get_time(void *pvParameters);
 void show_current_weight(void *pvParameters);

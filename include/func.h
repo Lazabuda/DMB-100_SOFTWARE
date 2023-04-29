@@ -15,7 +15,7 @@
 //---------------------DEFINES---------------------------//
 #define BARCODE_DATA_SIZE 500
 #define GYRO_DATA_SIZE 500
-#define CALC_ARRAY_SIZE 700 //MAX = 900
+#define CALC_ARRAY_SIZE 100 //MAX = 900
 
 #define BUTTON_UP 34
 #define BUTTON_DOWN 35
@@ -36,7 +36,7 @@ extern double reading2;
 extern double reading1print;
 extern double reading2print;
 extern double final_weight;
-extern double current_weight;
+extern double current_weight_disp;
 extern double coefficient;
 extern char barcode_data[BARCODE_DATA_SIZE];
 //extern int error_flag;
