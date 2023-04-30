@@ -527,12 +527,12 @@ void getweight(void *pvParameters)
         Serial.print("Value was sent to queue         ");
         Serial.println(current_weight);
 #endif
-        //flags = xEventGroupSetBits(scales_flags, QUEUE_ERROR);
-        //Serial.println("Queue ERROR");
+        flags = xEventGroupSetBits(scales_flags, QUEUE_ERROR);
+        Serial.println("Queue ERROR");
       }
     }
     xSemaphoreGive(mutex_wait);
-    vTaskDelay(5 / portTICK_PERIOD_MS);
+    vTaskDelay(25 / portTICK_PERIOD_MS);
     
   }
 }
@@ -582,8 +582,8 @@ void median_calc()
       Serial.print("     Value received to queue:         ");
       Serial.println(temp_weight);
 #endif
-      //flags = xEventGroupSetBits(scales_flags, QUEUE_ERROR);
-      //Serial.print("Calculation weight error");
+      flags = xEventGroupSetBits(scales_flags, QUEUE_ERROR);
+      Serial.print("Calculation weight error");
     }
     //mas[i] = current_weight;
     //Serial.print("Received value                  -                  ");
@@ -619,7 +619,7 @@ void show_current_weight(void *pvParameters)
       vTaskDelay(500 / portTICK_PERIOD_MS);
     }
     else
-      vTaskDelay(1000);
+      vTaskDelay(5000);
   }
 }
 
@@ -661,9 +661,9 @@ void get_time(void *pvParameters)
 
 void barcode_scanner(void *pvParameters)
 {
-#ifdef SERVICE_MODE
-  vTaskDelete(NULL);
-#endif
+//#ifdef SERVICE_MODE
+//  vTaskDelete(NULL);
+//#endif
   Serial2.begin(57600, SERIAL_8N1, RXD2, TXD2);
   int data_symbol;
   while (1)
@@ -689,7 +689,7 @@ void barcode_scanner(void *pvParameters)
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
     else
-      vTaskDelay(1000 / portTICK_PERIOD_MS);
+      vTaskDelay(5000 / portTICK_PERIOD_MS);
     
   }
 }
@@ -734,7 +734,7 @@ void gyroscope_data(void *pvParameters)
       }
     }
     else
-      vTaskDelay(1000);
+      vTaskDelay(5000);
       
   }
 }
@@ -812,7 +812,7 @@ void telnet_server(void *pvParameters)
       flags = xEventGroupClearBits(scales_flags, WIFI_DATA );
     }
     else
-      vTaskDelay(1000);
+      vTaskDelay(5000);
   }
 
 }
@@ -823,7 +823,7 @@ void telnet_server(void *pvParameters)
 void setup ( void )  
 { 
   mutex_wait = xSemaphoreCreateMutex();
-  reading_queue = xQueueCreate(5, sizeof(double));
+  reading_queue = xQueueCreate(1, sizeof(double));
 
   //esp_task_wdt_init(WDT_TIMEOUT, true); //enable panic so ESP32 restarts
   //esp_task_wdt_add(NULL); //add current thread to WDT watch
@@ -832,8 +832,8 @@ void setup ( void )
   xTaskCreate(show_display, "show_display", 8192, NULL, 2, NULL);
   //xTaskCreate(getweight1, "getweight1", 2048, NULL, 2, NULL);
   //xTaskCreate(getweight2, "getweight2", 2048, NULL, 2, NULL);
-  xTaskCreate(getweight, "getweight", 2048, NULL, 5, NULL);
-  xTaskCreate(get_final_weight, "get_final_weight", 2048, NULL, 2, NULL);
+  xTaskCreate(getweight, "getweight", 2048, NULL, 7, NULL);
+  xTaskCreate(get_final_weight, "get_final_weight", 2048, NULL, 7, NULL);
   xTaskCreate(get_time, "get_time", 2048, NULL, 2, NULL);
   xTaskCreate(show_current_weight, "current_weight", 1024, NULL, 3, NULL);
   xTaskCreate(barcode_scanner, "barcode_scanner", 2048, NULL, 2, NULL);

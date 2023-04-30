@@ -15,7 +15,7 @@
 //---------------------DEFINES---------------------------//
 #define BARCODE_DATA_SIZE 500
 #define GYRO_DATA_SIZE 500
-#define CALC_ARRAY_SIZE 100 //MAX = 900
+#define CALC_ARRAY_SIZE 500 //MAX = 900
 
 #define BUTTON_UP 34
 #define BUTTON_DOWN 35
