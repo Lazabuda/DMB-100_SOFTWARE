@@ -1,6 +1,7 @@
 #include "RTOS_tasks.h"
 #include "func.h"
 
+#define WITHOUT_TARE
 //#define DEBUG
 //#define SERIAL_FOR_DEBUG // Uncomment for see SERIAL DEBUG MESSAGES
 //#define SERVICE_MODE // Uncomment for service mode
@@ -68,6 +69,7 @@ static EventBits_t flags;
 #define RTC_ERROR BIT8 // Real Time Clock error flag
 #define QUEUE_ERROR BIT9 // Data from load cells ERROR FLAG
 #define EMPTY_SCALE BIT10 // Flag, which is "1" if scale for weighting samples is emty. "0" - if sample on the scale.
+#define CALIBRATION_FLAG BIT11 // If this flag = "1", it means, that reset happened and you need to recalibrate scales
 
 
 // Queues
@@ -223,6 +225,8 @@ void show_display(void *pvParameters) // create display menu task
       Serial.println(reading2);
       Serial.print("Coefficient value - ");
       Serial.println(coefficient, 4);
+      if (coefficient > 0.85 && coefficient < 0.75)
+        flags = xEventGroupSetBits(scales_flags, CALIBRATION_FLAG );
       reading1print = reading1;
       reading2print = reading2;
       i++;
@@ -230,6 +234,10 @@ void show_display(void *pvParameters) // create display menu task
     u8g2. firstPage ( ) ;
     do  
     {
+      if ((flags & CALIBRATION_FLAG) == CALIBRATION_FLAG)
+      {
+
+      }
       if ((flags & RTC_ERROR) != RTC_ERROR)
       {
         u8g2.setFont(u8g2_font_siji_t_6x10); // Width 12, Height 12
@@ -525,10 +533,20 @@ void getweight(void *pvParameters)
 {
   scale1.begin(LOADCELL1_DOUT_PIN, LOADCELL1_SCK_PIN);
   scale1.set_scale(1);
+#ifndef WITHOUT_TARE
   scale1.tare();
+#endif
+#ifdef WITHOUT_TARE
+  scale1.set_offset(51100);
+#endif
   scale2.begin(LOADCELL2_DOUT_PIN, LOADCELL2_SCK_PIN);
   scale2.set_scale(1);
+#ifndef WITHOUT_TARE
   scale2.tare();
+#endif
+#ifdef WITHOUT_TARE
+  scale2.set_offset(211800);
+#endif
   while (1)
   {
     if (xSemaphoreTake(mutex_wait, portMAX_DELAY) == pdTRUE)
@@ -635,6 +653,10 @@ void show_current_weight(void *pvParameters)
     //}
       current_weight_disp = (reading2*COMPENSATION_WEIGHT*coefficient)/reading1;
       vTaskDelay(500 / portTICK_PERIOD_MS);
+      Serial.print("reading1 = ");
+      Serial.println(reading1);
+      Serial.print("reading2 = ");
+      Serial.println(reading2);
     }
     else
       vTaskDelay(5000);
