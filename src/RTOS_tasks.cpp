@@ -1,6 +1,7 @@
 #include "RTOS_tasks.h"
 #include "func.h"
 
+//#define DEBUG
 //#define SERIAL_FOR_DEBUG // Uncomment for see SERIAL DEBUG MESSAGES
 //#define SERVICE_MODE // Uncomment for service mode
 //#define GYROSCOPE // Uncomment if you use gyroscope on the PCB
@@ -66,6 +67,7 @@ static EventBits_t flags;
 #define WIFI_DATA BIT7 // If data is transmitting, FLAG = 1
 #define RTC_ERROR BIT8 // Real Time Clock error flag
 #define QUEUE_ERROR BIT9 // Data from load cells ERROR FLAG
+#define EMPTY_SCALE BIT10 // Flag, which is "1" if scale for weighting samples is emty. "0" - if sample on the scale.
 
 
 // Queues
@@ -131,29 +133,37 @@ void task_button(void *pvParameters) // create button RTOS task
       if  (st1 != state_btn1)
       {
         state_btn1 = st1;
-        if (st1 == LOW) {right_down_button = 1;}
-        else {right_down_button = 0;}
+        if (st1 == LOW) 
+          right_down_button = 1;
+        else 
+          right_down_button = 0;
       }
 
       if  (st2 != state_btn2)
       {
         state_btn2 = st2;
-        if (st2 == LOW) {right_up_button = 1;}
-        else{right_up_button = 0;}
+        if (st2 == LOW) 
+          right_up_button = 1;
+        else
+          right_up_button = 0;
       }
 
       if  (st3 != state_btn3)
       {
         state_btn3 = st3;
-        if (st3 == LOW) {left_up_button = 1;}
-        else {left_up_button = 0;}
+        if (st3 == LOW) 
+          left_up_button = 1;
+        else 
+          left_up_button = 0;
       }
 
       if  (st4 != state_btn4)
       {
         state_btn4 = st4;
-        if (st4 == LOW) {left_down_button = 1;}
-        else {left_down_button = 0;}
+        if (st4 == LOW) 
+          left_down_button = 1;
+        else 
+          left_down_button = 0;
       }
       if (st1 == HIGH && st2 == HIGH && st3 == HIGH && st4 == HIGH)
       {
@@ -165,7 +175,6 @@ void task_button(void *pvParameters) // create button RTOS task
       }
       vTaskDelay(100 / portTICK_PERIOD_MS); // this function calls the task manager, which set this task to WAIT mode for 100 system ticks.
     }
-
   }
 }
 
@@ -175,7 +184,7 @@ void show_display(void *pvParameters) // create display menu task
 {
   scales_flags = xEventGroupCreate();
   flags = xEventGroupClearBits(scales_flags, WEIGHTING | SD_CARD_ERROR | READING1_OOR_ERROR | BARDODE_DATA_FLAG | FINAL_WEIGHT | \
-  WIFI_FLAG | SERVICE_MODE | WIFI_DATA | RTC_ERROR);
+  WIFI_FLAG | SERVICE_MODE | WIFI_DATA | RTC_ERROR | EMPTY_SCALE);
   Serial.begin(115200);
   u8g2. begin ( ) ;
   u8g2. setContrast  (10) ;
@@ -202,10 +211,10 @@ void show_display(void *pvParameters) // create display menu task
       if ((flags & SERVICE_MODE) != SERVICE_MODE)
       //if (service_mode == false)
       {
-//#ifndef SERVICE_MODE
+#ifndef DEBUG
         second_page();
         vTaskDelay(5000);
-//#endif
+#endif
       }      
       coefficient = reading1/reading2; 
       Serial.print("Reading 1 value - ");
@@ -295,10 +304,20 @@ void show_display(void *pvParameters) // create display menu task
       u8g2.setCursor(90, 20);
       u8g2.print(current_weight_disp, 2);
 
+      if (reading2 < 1000.00)
+      {
+        flags  = xEventGroupSetBits(scales_flags, EMPTY_SCALE );
+      }
+
       u8g2.setFont(u8g2_font_7x13B_tf);
       u8g2.setCursor(30, 45);
 
-      if ((flags & SERVICE_MODE) != SERVICE_MODE)
+      if ((flags & EMPTY_SCALE) == EMPTY_SCALE)
+      {
+        u8g2.print("PUT&PRESS");
+      }
+
+      if (((flags & SERVICE_MODE) != SERVICE_MODE) && (flags & EMPTY_SCALE) != EMPTY_SCALE)
       //if (service_mode == false)      
       {
         if (final_weight == false)
@@ -449,6 +468,7 @@ void show_display(void *pvParameters) // create display menu task
         {
           u8g2.drawButtonUTF8(85, 64, U8G2_BTN_INV|U8G2_BTN_BW2, 0,  2,  2, "WEIGHTING" );
           flags  = xEventGroupSetBits(scales_flags, FINAL_WEIGHT );
+          flags  = xEventGroupClearBits(scales_flags, EMPTY_SCALE );
           //flag_weighting = 1;
         }
         xSemaphoreGive(mutex_wait);
@@ -528,7 +548,6 @@ void getweight(void *pvParameters)
         Serial.println(current_weight);
 #endif
         flags = xEventGroupSetBits(scales_flags, QUEUE_ERROR);
-        Serial.println("Queue ERROR");
       }
     }
     xSemaphoreGive(mutex_wait);
@@ -583,7 +602,6 @@ void median_calc()
       Serial.println(temp_weight);
 #endif
       flags = xEventGroupSetBits(scales_flags, QUEUE_ERROR);
-      Serial.print("Calculation weight error");
     }
     //mas[i] = current_weight;
     //Serial.print("Received value                  -                  ");
@@ -642,14 +660,16 @@ void get_time(void *pvParameters)
     //if (service_mode == false)
     {
 //#ifndef SERVICE_MODE
-      sprintf(date_time, "%02d/%02d/%04d        %02d:%02d:%02d", now.day(), now.month(), now.year(), now.hour(), now.minute(), now.second());
+      if ((now.year() < 2030) && (now.hour() < 24))
+        sprintf(date_time, "%02d/%02d/%04d        %02d:%02d:%02d", now.day(), now.month(), now.year(), now.hour(), now.minute(), now.second());
 //#endif
     }
 //#ifdef SERVICE_MODE
     if ((flags & SERVICE_MODE) == SERVICE_MODE)
     //if (service_mode == true)
     {
-    sprintf(date_time, "%02d/%02d/%04d-%02d:%02d:%02d", now.day(), now.month(), now.year(), now.hour(), now.minute(), now.second());
+      if ((now.year() < 2030) && (now.hour() < 24))
+        sprintf(date_time, "%02d/%02d/%04d-%02d:%02d:%02d", now.day(), now.month(), now.year(), now.hour(), now.minute(), now.second());
 //#endif
     }
     vTaskDelay(300 / portTICK_PERIOD_MS);
@@ -825,9 +845,6 @@ void setup ( void )
   mutex_wait = xSemaphoreCreateMutex();
   reading_queue = xQueueCreate(1, sizeof(double));
 
-  //esp_task_wdt_init(WDT_TIMEOUT, true); //enable panic so ESP32 restarts
-  //esp_task_wdt_add(NULL); //add current thread to WDT watch
-  //esp_task_wdt_reset();
   xTaskCreate(task_button, "buttons", 4096, NULL, 3, NULL);
   xTaskCreate(show_display, "show_display", 8192, NULL, 2, NULL);
   //xTaskCreate(getweight1, "getweight1", 2048, NULL, 2, NULL);
