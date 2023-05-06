@@ -16,18 +16,19 @@
 //#define SERVICE_MODE // Uncomment for service mode
 //#define GYROSCOPE // Uncomment if you use gyroscope on the PCB
 
-#define BARCODE_DATA_SIZE 500
-#define GYRO_DATA_SIZE 500
-#define CALC_ARRAY_SIZE 500 //MAX = 900
-#define COMPENSATION_WEIGHT 7.77 // The weight of compensation sample. 20 g by default.
+#define BARCODE_DATA_SIZE 500               // <---------- Barcode symbols quantity. Change if you need more
+#define GYRO_DATA_SIZE 500                  // <---------- Data symbols from gyroscope quantity. Change if you need more
+#define CALC_ARRAY_SIZE 500                 // <----------Array size for median calculation of weight. MAX = 900
+#define COMPENSATION_WEIGHT 7.77            // <----------The weight of compensation sample. 20 g by default.
 
 //*--------------------------------------------*//
 //*---ENTER YOUR WIFI SSID AND PASSWORD HERE---*//
 //*--------------------------------------------*//
-static char ssid_name[] = "AVL9-19";            // <---------- WiFi SSID
-static char password_name[] = "baku2020";       // <---------- WiFi PASSWORD
-#define SSID ssid_name                           
-#define PASSWORD password_name                      
+const static char ssid_name[] = "AVL9-19";            // <---------- WiFi SSID
+const static char password_name[] = "baku2020";       // <---------- WiFi PASSWORD
+//#define SSID "AVL9-19"
+//#define PASSWORD "baku2020"
+
 //*--------------------------------------------*//
 
 

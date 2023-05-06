@@ -11,8 +11,8 @@ Adafruit_MPU6050 mpu;
 //*----------------------------Wi-Fi----------------------------*//
 WiFiServer Server(23); // The port number, wich you need to enter in PUTTY (or another software)
 WiFiClient Client; // one client should be able to telnet to this ESP32
-const char *ssid = SSID;
-const char *password = PASSWORD;
+const char *ssid = ssid_name;
+const char *password = password_name;
 
 
 //*--------FreeRTOS QUEUES, SEMAPHORES, EVENTS (FLAGS)----------*//
