@@ -233,8 +233,10 @@ void show_display(void *pvParameters) // create display menu task
       //if (service_mode == false)
       {
 #ifndef DEBUG
+#ifndef WITHOUT_TARE
         second_page();
         vTaskDelay(5000);
+#endif
 #endif
       }      
       coefficient = reading1/reading2; 
@@ -339,7 +341,7 @@ void show_display(void *pvParameters) // create display menu task
       u8g2.setFont(u8g2_font_7x13B_tf);
       u8g2.setCursor(30, 45);
 
-      if ((flags & EMPTY_SCALE) == EMPTY_SCALE)
+      if (((flags & EMPTY_SCALE) == EMPTY_SCALE) && (((flags & SERVICE_MODE) != SERVICE_MODE)))
       {
         u8g2.print("PUT&PRESS");
       }

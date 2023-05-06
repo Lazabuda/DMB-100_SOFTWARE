@@ -10,25 +10,22 @@
 //*-----------------!!!!!SET THE DEFINES!!!!!!!-----------------*//
 //*-------------------------------------------------------------*//
 //   Additional service processes defines
-#define WITHOUT_TARE
+//#define WITHOUT_TARE
 //#define DEBUG
 //#define SERIAL_FOR_DEBUG // Uncomment for see SERIAL DEBUG MESSAGES
 //#define SERVICE_MODE // Uncomment for service mode
 //#define GYROSCOPE // Uncomment if you use gyroscope on the PCB
 
-#define BARCODE_DATA_SIZE 500               // <---------- Barcode symbols quantity. Change if you need more
-#define GYRO_DATA_SIZE 500                  // <---------- Data symbols from gyroscope quantity. Change if you need more
-#define CALC_ARRAY_SIZE 500                 // <----------Array size for median calculation of weight. MAX = 900
-#define COMPENSATION_WEIGHT 7.77            // <----------The weight of compensation sample. 20 g by default.
+#define BARCODE_DATA_SIZE 500                       // <---------- Barcode symbols quantity. Change if you need more
+#define GYRO_DATA_SIZE 500                          // <---------- Data symbols from gyroscope quantity. Change if you need more
+#define CALC_ARRAY_SIZE 500                         // <---------- Array size for median calculation of weight. MAX = 900
+#define COMPENSATION_WEIGHT 7.77                    // <---------- The weight of compensation sample. 20 g by default.
 
 //*--------------------------------------------*//
 //*---ENTER YOUR WIFI SSID AND PASSWORD HERE---*//
 //*--------------------------------------------*//
-const static char ssid_name[] = "AVL9-19";            // <---------- WiFi SSID
-const static char password_name[] = "baku2020";       // <---------- WiFi PASSWORD
-//#define SSID "AVL9-19"
-//#define PASSWORD "baku2020"
-
+const static char ssid_name[] = "AVL9-19";          // <---------- WiFi SSID
+const static char password_name[] = "baku2020";     // <---------- WiFi PASSWORD
 //*--------------------------------------------*//
 
 
@@ -106,11 +103,11 @@ void telnet_server(void *pvParameters);
 int cmpfunc (const void * a, const void * b);
 void start_page();
 void second_page();
-void average_calc();
+//void average_calc();
 void median_calc();
 void append_data_to_log();
 void write_log_header(fs::FS &fs, const char * path);
 //int set_bit(int num_bit);
 //int is_bit_set(int num_bit);
-void is_error();
+//void is_error();
  
