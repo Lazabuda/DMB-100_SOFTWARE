@@ -1,13 +1,41 @@
 #include "RTOS_tasks.h"
-#include "func.h"
 
-#define WITHOUT_TARE
-//#define DEBUG
-//#define SERIAL_FOR_DEBUG // Uncomment for see SERIAL DEBUG MESSAGES
-//#define SERVICE_MODE // Uncomment for service mode
-//#define GYROSCOPE // Uncomment if you use gyroscope on the PCB
+//***************************************************************//
+//*---------------VARIABLES, HANDLERS, CLASSES-------------------//
+//***************************************************************//
 
-//---------------------GLOBAL VARIABLES---------------------------//
+//*-----------------------GYROSCOPE MPU6050---------------------*//
+Adafruit_MPU6050 mpu;
+
+
+//*----------------------------Wi-Fi----------------------------*//
+WiFiServer Server(23); // The port number, wich you need to enter in PUTTY (or another software)
+WiFiClient Client; // one client should be able to telnet to this ESP32
+const char *ssid = SSID;
+const char *password = PASSWORD;
+
+
+//*--------FreeRTOS QUEUES, SEMAPHORES, EVENTS (FLAGS)----------*//
+// Queues
+static QueueHandle_t reading_queue;
+
+// Assign semaphore
+SemaphoreHandle_t btnSemaphore;
+volatile SemaphoreHandle_t mutex_wait;
+
+// Events (FLAGS)
+static EventGroupHandle_t scales_flags;
+static EventBits_t flags;
+
+
+
+//*---------------------------DISPLAY---------------------------*//
+
+// DEFINE PINOUTS FOR DISPLAY: scl = 14 // si = 13 // cs = 15 // rs = 12 // rse = 27
+U8G2_ST7565_ERC12864_1_4W_SW_SPI u8g2 ( U8G2_R0, /* scl=*/  14 , /* si=*/  13 , /* cs=*/  15 , /* rs=*/  12 , /* rse=*/  27 ) ;
+
+
+//*-------------------------HX711 ADC---------------------------*//
 
 // DEFINE PINs FOR TWO HX711
 const int LOADCELL1_DOUT_PIN = 32;
@@ -26,74 +54,62 @@ double reading2;
 double reading1print;
 double reading2print;
 double final_weight;
-//double current_weight;
 double current_weight_disp;
 double coefficient;
 double mas[CALC_ARRAY_SIZE];
 double average = 0;
-//int flag_weighting;
-//volatile int flag;
-//bool service_mode = false;
 
-// SERVICE VARIABLES
-//int task_counter = 0;
-//int error_flag = 0x0; //Error bits: 0 bit - SD card error; 1 bit - reading1 is not in the area of the right values
-
+//*-------------------REAL TIME CLOCK---------------------------*//
 // DEFINE VARIABLES FOR REAL TIME CLOCK
 char date_time [50] = "";
 
+
+//*-------------------BARCODE SCANNER---------------------------*//
 // DEFINE VARIABLES FOR BARCODE SCANNER
 char barcode_data[BARCODE_DATA_SIZE] = "";
 
+//*---------------UART INPUT GYROSCOPE DATA---------------------*//
 // GYRO DATA
 char gyro_data[GYRO_DATA_SIZE] = "";
 
+//*-----------------------BUTTONS-------------------------------*//
 // DEFINE BUTTON FLAGS
 int left_up_button; // FREE BUTTON
 int left_down_button; // CALIBRATE BUTTON
 int right_up_button; // SAVE BUTTON
 int right_down_button; // WEIGHTING BUTTON
 
-// Events (FLAGS)
-static EventGroupHandle_t scales_flags;
-static EventBits_t flags;
 
-#define WEIGHTING BIT0 // Allow Weighting flag
-#define SD_CARD_ERROR BIT1 // SD Card error flag
-#define READING1_OOR_ERROR BIT2 // Reading 1 out of range error flag
-#define BARDODE_DATA_FLAG BIT3 // Is data in barcode scanner buffer
-#define FINAL_WEIGHT BIT4 // Final weight enable flag
-#define SERVICE_MODE BIT5 // Service mode flag
-#define WIFI_FLAG BIT6 // If WiFi has been initialized, FLAG = 1
-#define WIFI_DATA BIT7 // If data is transmitting, FLAG = 1
-#define RTC_ERROR BIT8 // Real Time Clock error flag
-#define QUEUE_ERROR BIT9 // Data from load cells ERROR FLAG
-#define EMPTY_SCALE BIT10 // Flag, which is "1" if scale for weighting samples is emty. "0" - if sample on the scale.
-#define CALIBRATION_FLAG BIT11 // If this flag = "1", it means, that reset happened and you need to recalibrate scales
+//*-----------------------UNUSED, TO DELETE---------------------*//
+//extern const int CS = 5;
+//int flag_weighting;
+//volatile int flag;
+//bool service_mode = false;
+// SERVICE VARIABLES
+//int task_counter = 0;
+//int error_flag = 0x0; //Error bits: 0 bit - SD card error; 1 bit - reading1 is not in the area of the right values
+//double current_weight;
+//*-------------------------------------------------------------*//
 
 
-// Queues
-static QueueHandle_t reading_queue;
+//***************************************************************//
+//*--------------------FreeRTOS FUNCTIONS------------------------//
+//***************************************************************//
 
+//*-------------------------------------------------------------*//
+//*----------------------INTERRUPT HANDLER----------------------*//
+//*-------------------------------------------------------------*//
 
-// DEFINE PINOUTS FOR DISPLAY: scl = 14 // si = 13 // cs = 15 // rs = 12 // rse = 27
-U8G2_ST7565_ERC12864_1_4W_SW_SPI u8g2 ( U8G2_R0, /* scl=*/  14 , /* si=*/  13 , /* cs=*/  15 , /* rs=*/  12 , /* rse=*/  27 ) ;
-
-
- // Assign semaphore
-SemaphoreHandle_t btnSemaphore;
-volatile SemaphoreHandle_t mutex_wait;
-
-// create function - interrupt handler
 void IRAM_ATTR ISR_btn() // IRAM_ATTR means, that we use RAM (wich more faster and recommended for interrupts).ISR - interrupt service routine
-
 // Macro to release a semaphore from interruption. The semaphore must have previously been created with a call to 
 //xSemaphoreCreateBinary() or xSemaphoreCreateCounting().
 {
   xSemaphoreGiveFromISR( btnSemaphore, NULL ); 
 }
 
-//---------------------------------------BUTTONS FREERTOS TASK------------------------------------//
+//*-------------------------------------------------------------*//
+//*-------------------BUTTONS FREERTOS TASK---------------------*//
+//*-------------------------------------------------------------*//
 
 void task_button(void *pvParameters) // create button RTOS task
 {
@@ -180,7 +196,10 @@ void task_button(void *pvParameters) // create button RTOS task
   }
 }
 
-//---------------------------------------DISPLAY FREERTOS TASK------------------------------------//
+
+//*-------------------------------------------------------------*//
+//*-------------------DISPLAY FREERTOS TASK---------------------*//
+//*-------------------------------------------------------------*//
 
 void show_display(void *pvParameters) // create display menu task
 {
@@ -495,39 +514,9 @@ void show_display(void *pvParameters) // create display menu task
 
 }
 
-//------------------------------------WEIGHTING PROCESS FREERTOS TASKs------------------------------------//
-///*
-void getweight1(void *pvParameters)
-{
-  scale1.begin(LOADCELL1_DOUT_PIN, LOADCELL1_SCK_PIN);
-  scale1.set_scale(1);
-  scale1.tare();
-
-  while (1)
-  {
-    reading1 = scale1.get_units(3);
-    Serial.print("Sent reading1                  -                  ");
-    Serial.println(reading1);
-    vTaskDelay(5 / portTICK_PERIOD_MS);
-  }
-}
-
-void getweight2(void *pvParameters)
-{
-  scale2.begin(LOADCELL2_DOUT_PIN, LOADCELL2_SCK_PIN);
-  scale2.set_scale(1);
-  scale2.tare();
-
-  while (1)
-  {
-    reading2 = scale2.get_units(3);
-    Serial.print("Sent reading2                  -                  ");
-    Serial.println(reading2);
-    vTaskDelay(5 / portTICK_PERIOD_MS);
-  }
-}
-//*/
-
+//*-------------------------------------------------------------*//
+//*------------------WEIGHTING PROCESS TASKs--------------------*//
+//*-------------------------------------------------------------*//
 
 void getweight(void *pvParameters)
 {
@@ -663,7 +652,9 @@ void show_current_weight(void *pvParameters)
   }
 }
 
-//-------------------------------------REAL TIME CLOCK FREERTOS TASK------------------------------------//
+//*-------------------------------------------------------------*//
+//*--------------------REAL TIME CLOCK TASK---------------------*//
+//*-------------------------------------------------------------*//
 
 void get_time(void *pvParameters)
 {
@@ -699,7 +690,9 @@ void get_time(void *pvParameters)
 }
 
 
-//---------------------------------------BARCODE FREERTOS TASK------------------------------------//
+//*-------------------------------------------------------------*//
+//*-----------------------BARCODE TASK--------------------------*//
+//*-------------------------------------------------------------*//
 
 void barcode_scanner(void *pvParameters)
 {
@@ -736,7 +729,9 @@ void barcode_scanner(void *pvParameters)
   }
 }
 
-//----------------------------------GET DATA FROM GYROSCOPE TASK------------------------------------//
+//*-------------------------------------------------------------*//
+//*--------------GET DATA FROM GYROSCOPE TASK-------------------*//
+//*-------------------------------------------------------------*//
 
 void gyroscope_data(void *pvParameters)
 {
@@ -781,7 +776,9 @@ void gyroscope_data(void *pvParameters)
   }
 }
 
-//------------------------------ESP32 Wi-Fi TELNET Server-----------------------------//
+//*-------------------------------------------------------------*//
+//*----------------ESP32 Wi-Fi TELNET Server--------------------*//
+//*-------------------------------------------------------------*//
 
 void telnet_server(void *pvParameters)
 {
@@ -859,7 +856,10 @@ void telnet_server(void *pvParameters)
 
 }
 
-//----------------------------------FREERTOS SETUP------------------------------------//
+
+//*-------------------------------------------------------------*//
+//*----------------------FREERTOS SETUP-------------------------*//
+//*-------------------------------------------------------------*//
 
 
 void setup ( void )  
@@ -886,3 +886,41 @@ void loop ( void )
 {
   vTaskDelay(50);
 }
+
+
+//*-------------------------------------------------------------*//
+//*----------------------UNUSED, TO DELETE----------------------*//
+//*-------------------------------------------------------------*//
+
+
+
+void getweight1(void *pvParameters)
+{
+  scale1.begin(LOADCELL1_DOUT_PIN, LOADCELL1_SCK_PIN);
+  scale1.set_scale(1);
+  scale1.tare();
+
+  while (1)
+  {
+    reading1 = scale1.get_units(3);
+    Serial.print("Sent reading1                  -                  ");
+    Serial.println(reading1);
+    vTaskDelay(5 / portTICK_PERIOD_MS);
+  }
+}
+
+void getweight2(void *pvParameters)
+{
+  scale2.begin(LOADCELL2_DOUT_PIN, LOADCELL2_SCK_PIN);
+  scale2.set_scale(1);
+  scale2.tare();
+
+  while (1)
+  {
+    reading2 = scale2.get_units(3);
+    Serial.print("Sent reading2                  -                  ");
+    Serial.println(reading2);
+    vTaskDelay(5 / portTICK_PERIOD_MS);
+  }
+}
+

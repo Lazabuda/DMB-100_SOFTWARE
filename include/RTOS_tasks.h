@@ -2,6 +2,68 @@
 
 #define SERIAL_NUMBER 0001
 
+//***************************************************************//
+//*---------------------------DEFINES----------------------------//
+//***************************************************************//
+
+//*-------------------------------------------------------------*//
+//*-----------------!!!!!SET THE DEFINES!!!!!!!-----------------*//
+//*-------------------------------------------------------------*//
+//   Additional service processes defines
+#define WITHOUT_TARE
+//#define DEBUG
+//#define SERIAL_FOR_DEBUG // Uncomment for see SERIAL DEBUG MESSAGES
+//#define SERVICE_MODE // Uncomment for service mode
+//#define GYROSCOPE // Uncomment if you use gyroscope on the PCB
+
+#define BARCODE_DATA_SIZE 500
+#define GYRO_DATA_SIZE 500
+#define CALC_ARRAY_SIZE 500 //MAX = 900
+#define COMPENSATION_WEIGHT 7.77 // The weight of compensation sample. 20 g by default.
+
+//*--------------------------------------------*//
+//*---ENTER YOUR WIFI SSID AND PASSWORD HERE---*//
+//*--------------------------------------------*//
+static char ssid_name[] = "AVL9-19";            // <---------- WiFi SSID
+static char password_name[] = "baku2020";       // <---------- WiFi PASSWORD
+#define SSID ssid_name                           
+#define PASSWORD password_name                      
+//*--------------------------------------------*//
+
+
+
+//*-------------------------------------------------------------*//
+//*------------------EVENTS (FLAGS) DEFINES---------------------*//
+//*-------------------------------------------------------------*//
+#define WEIGHTING BIT0 // Allow Weighting flag
+#define SD_CARD_ERROR BIT1 // SD Card error flag
+#define READING1_OOR_ERROR BIT2 // Reading 1 out of range error flag
+#define BARDODE_DATA_FLAG BIT3 // Is data in barcode scanner buffer
+#define FINAL_WEIGHT BIT4 // Final weight enable flag
+#define SERVICE_MODE BIT5 // Service mode flag
+#define WIFI_FLAG BIT6 // If WiFi has been initialized, FLAG = 1
+#define WIFI_DATA BIT7 // If data is transmitting, FLAG = 1
+#define RTC_ERROR BIT8 // Real Time Clock error flag
+#define QUEUE_ERROR BIT9 // Data from load cells ERROR FLAG
+#define EMPTY_SCALE BIT10 // Flag, which is "1" if scale for weighting samples is emty. "0" - if sample on the scale.
+#define CALIBRATION_FLAG BIT11 // If this flag = "1", it means, that reset happened and you need to recalibrate scales
+
+//*-------------------------------------------------------------*//
+//*---------------------PINs SET DEFINES------------------------*//
+//*-------------------------------------------------------------*//
+// BUTTUNS DEFINES
+#define BUTTON_UP 34
+#define BUTTON_DOWN 35
+#define BUTTON_RIGHT 2
+#define BUTTON_LEFT 4
+// UART2 DEFINES
+#define RXD2 16
+#define TXD2 17
+
+//*-------------------------------------------------------------*//
+//*-------------------------INCLUDES----------------------------*//
+//*-------------------------------------------------------------*//
+
 #include "HX711.h"
 #include <Arduino.h> 
 #include <U8g2lib.h>
@@ -17,16 +79,11 @@
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
 
-Adafruit_MPU6050 mpu;
 
-WiFiServer Server(23);
-WiFiClient Client; // one client should be able to telnet to this ESP32
-const char *ssid = "AVL9-19";
-const char *password = "baku2020";
+//***************************************************************//
+//*---------------------FreeRTOS tasks---------------------------//
+//***************************************************************//
 
-
-//#define WDT_TIMEOUT 2
-//#include <esp_task_wdt.h>
 
 void task_button(void *pvParameters);
 void show_display(void *pvParameters);
@@ -41,4 +98,18 @@ void gyroscope_data(void *pvParameters);
 void telnet_server(void *pvParameters);
 
 
+//***************************************************************//
+//*----------------Non-FreeRTOS functions------------------------//
+//***************************************************************//
+
+int cmpfunc (const void * a, const void * b);
+void start_page();
+void second_page();
+void average_calc();
+void median_calc();
+void append_data_to_log();
+void write_log_header(fs::FS &fs, const char * path);
+//int set_bit(int num_bit);
+//int is_bit_set(int num_bit);
+void is_error();
  
