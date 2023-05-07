@@ -10,11 +10,9 @@
 //*-----------------!!!!!SET THE DEFINES!!!!!!!-----------------*//
 //*-------------------------------------------------------------*//
 //   Additional service processes defines
+
 //#define WITHOUT_TARE
-//#define DEBUG
 //#define SERIAL_FOR_DEBUG // Uncomment for see SERIAL DEBUG MESSAGES
-//#define SERVICE_MODE // Uncomment for service mode
-//#define GYROSCOPE // Uncomment if you use gyroscope on the PCB
 
 #define BARCODE_DATA_SIZE 500                       // <---------- Barcode symbols quantity. Change if you need more
 #define GYRO_DATA_SIZE 500                          // <---------- Data symbols from gyroscope quantity. Change if you need more
@@ -103,11 +101,6 @@ void telnet_server(void *pvParameters);
 int cmpfunc (const void * a, const void * b);
 void start_page();
 void second_page();
-//void average_calc();
 void median_calc();
 void append_data_to_log();
 void write_log_header(fs::FS &fs, const char * path);
-//int set_bit(int num_bit);
-//int is_bit_set(int num_bit);
-//void is_error();
- 

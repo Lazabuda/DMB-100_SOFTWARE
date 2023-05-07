@@ -80,18 +80,6 @@ int right_up_button; // SAVE BUTTON
 int right_down_button; // WEIGHTING BUTTON
 
 
-//*-----------------------UNUSED, TO DELETE---------------------*//
-//extern const int CS = 5;
-//int flag_weighting;
-//volatile int flag;
-//bool service_mode = false;
-// SERVICE VARIABLES
-//int task_counter = 0;
-//int error_flag = 0x0; //Error bits: 0 bit - SD card error; 1 bit - reading1 is not in the area of the right values
-//double current_weight;
-//*-------------------------------------------------------------*//
-
-
 //***************************************************************//
 //*--------------------FreeRTOS FUNCTIONS------------------------//
 //***************************************************************//
@@ -100,9 +88,9 @@ int right_down_button; // WEIGHTING BUTTON
 //*----------------------INTERRUPT HANDLER----------------------*//
 //*-------------------------------------------------------------*//
 
-void IRAM_ATTR ISR_btn() // IRAM_ATTR means, that we use RAM (wich more faster and recommended for interrupts).ISR - interrupt service routine
-// Macro to release a semaphore from interruption. The semaphore must have previously been created with a call to 
-//xSemaphoreCreateBinary() or xSemaphoreCreateCounting().
+void IRAM_ATTR ISR_btn() // IRAM_ATTR means, that we use RAM (wich more faster and recommended for interrupts).
+//ISR - interrupt service routine. Macro to release a semaphore from interruption. The semaphore must have previously 
+//been created with a call to xSemaphoreCreateBinary() or xSemaphoreCreateCounting().
 {
   xSemaphoreGiveFromISR( btnSemaphore, NULL ); 
 }
@@ -191,7 +179,7 @@ void task_button(void *pvParameters) // create button RTOS task
         attachInterrupt(BUTTON_LEFT, ISR_btn, FALLING);
         isISR = true;
       }
-      vTaskDelay(100 / portTICK_PERIOD_MS); // this function calls the task manager, which set this task to WAIT mode for 100 system ticks.
+      vTaskDelay(100 / portTICK_PERIOD_MS); // WAIT mode for 100 system ticks.
     }
   }
 }
@@ -213,7 +201,6 @@ void show_display(void *pvParameters) // create display menu task
   if(!SD.begin())
   {
     Serial.println("Card Mount Failed");
-    //set_bit(0);
     flags  = xEventGroupSetBits(scales_flags, SD_CARD_ERROR );
   }
   write_log_header(SD, "/log.csv");
@@ -230,13 +217,10 @@ void show_display(void *pvParameters) // create display menu task
     if (i < 2)
     {
       if ((flags & SERVICE_MODE) != SERVICE_MODE)
-      //if (service_mode == false)
       {
-#ifndef DEBUG
 #ifndef WITHOUT_TARE
         second_page();
         vTaskDelay(5000);
-#endif
 #endif
       }      
       coefficient = reading1/reading2; 
@@ -274,24 +258,18 @@ void show_display(void *pvParameters) // create display menu task
         u8g2.setFont(u8g2_font_siji_t_6x10); // Width 12, Height 12
         u8g2.drawGlyph(33, 10, 0xE219);
       }
-      //if (is_bit_set(0) == false)
       if ((flags & SD_CARD_ERROR) != SD_CARD_ERROR)
       {
         u8g2.setFont(u8g2_font_siji_t_6x10); // Width 12, Height 12
         u8g2.drawGlyph(55, 10, 0xE1D6);
       }
-      //if (is_bit_set(0))
       if ((flags & SD_CARD_ERROR) == SD_CARD_ERROR)
       {
         u8g2.setFont(u8g2_font_siji_t_6x10);
         u8g2.drawGlyph(55, 10, 0xE1C4);
-        //u8g2.setCursor(55, 10);
-        //u8g2.print("NO SD!");
       }
       if ((flags & SERVICE_MODE) != SERVICE_MODE)
-      //if (service_mode == false)
       {
-//#ifndef SERVICE_MODE
         u8g2.setFont(u8g2_font_fivepx_tr);
         u8g2.setCursor(5, 20);
         u8g2.print("coeff = ");
@@ -299,18 +277,13 @@ void show_display(void *pvParameters) // create display menu task
         u8g2.setFont(u8g2_font_fivepx_tr);
         u8g2.setCursor(40, 20);
         u8g2.print(coefficient, 4);
-//#endif
       }
       if ((flags & SERVICE_MODE) == SERVICE_MODE)
-      //if (service_mode == true)
       {
-//#ifdef SERVICE_MODE 
         u8g2.setFont(u8g2_font_fivepx_tr);
         u8g2.setCursor(5, 20);
-        u8g2.print("SERVICE MODE");
-//#endif      
+        u8g2.print("SERVICE MODE");    
       }
-      //if (flag == 0)
       if ((flags & BARDODE_DATA_FLAG) != BARDODE_DATA_FLAG)
       {
         u8g2.setFont(u8g2_font_fivepx_tr);
@@ -321,7 +294,6 @@ void show_display(void *pvParameters) // create display menu task
         u8g2.setCursor(80, 30);
         u8g2.print(reading2print); 
       }
-      //if (flag == 1)
       if ((flags & BARDODE_DATA_FLAG) == BARDODE_DATA_FLAG)
       {
         u8g2.setFont(u8g2_font_fivepx_tr);
@@ -347,11 +319,9 @@ void show_display(void *pvParameters) // create display menu task
       }
 
       if (((flags & SERVICE_MODE) != SERVICE_MODE) && (flags & EMPTY_SCALE) != EMPTY_SCALE)
-      //if (service_mode == false)      
       {
         if (final_weight == false)
         {
-//#ifndef SERVICE_MODE        
           u8g2.print("WAIT...");
         }
         else
@@ -359,17 +329,12 @@ void show_display(void *pvParameters) // create display menu task
           u8g2.print(final_weight, 2);
         }
       }
-//#endif
-//#ifdef SERVICE_MODE
       if ((flags & SERVICE_MODE) == SERVICE_MODE)
-      //if (service_mode == true)
       {
         u8g2.setFont(u8g2_font_7x13B_tf);
         u8g2.setCursor(15, 45);
         u8g2.print("SERVICE MODE");
       }
-//#endif
-      
 
       u8g2.setFont(u8g2_font_fivepx_tr);
       u8g2.setCursor(5, 55);
@@ -384,20 +349,15 @@ void show_display(void *pvParameters) // create display menu task
           while(1)
           {
             if ((flags & SERVICE_MODE) != SERVICE_MODE)
-            //if (service_mode == false)
             {
               flags  = xEventGroupSetBits(scales_flags, SERVICE_MODE );
-              //service_mode = true;
               Serial.println("service_mode = true");
-              //memset(barcode_data, '\0', sizeof(barcode_data));
               vTaskDelay(200);
               break;
             }
             if ((flags & SERVICE_MODE) == SERVICE_MODE)
-            //if (service_mode == true)
             {
               flags = xEventGroupClearBits(scales_flags, SERVICE_MODE );
-              //service_mode = false;
               Serial.println("service_mode = false");
               vTaskDelay(200);
               break;
@@ -434,7 +394,6 @@ void show_display(void *pvParameters) // create display menu task
           Serial.println(coefficient, 4);
 #endif
           flags = xEventGroupClearBits(scales_flags, BARDODE_DATA_FLAG);
-          //flag = 0;
           vTaskDelay(20);
         }
         xSemaphoreGive(mutex_wait);
@@ -452,17 +411,11 @@ void show_display(void *pvParameters) // create display menu task
         {
           u8g2.drawButtonUTF8(105, 10, U8G2_BTN_INV|U8G2_BTN_BW2, 0,  0,  0, "SAVE" );
           flags = xEventGroupClearBits(scales_flags, BARDODE_DATA_FLAG);
-          //flag = 0;
-          //if (task_counter == 0)
-          //{
-          //write_to_sd();
           if ((flags & SD_CARD_ERROR) != SD_CARD_ERROR)
-          //if (!(is_bit_set(0)))
           {
             append_data_to_log();
             vTaskDelay(30 / portTICK_PERIOD_MS);
             memset(barcode_data, '\0', sizeof(barcode_data));
-            //task_counter ++;
           }
           else
           {
@@ -487,7 +440,6 @@ void show_display(void *pvParameters) // create display menu task
         u8g2.setFont(u8g2_font_fivepx_tr);
         u8g2.setCursor(105, 10);
         u8g2.print("SAVE");
-        //task_counter = 0;
       }
       
       
@@ -498,7 +450,6 @@ void show_display(void *pvParameters) // create display menu task
           u8g2.drawButtonUTF8(85, 64, U8G2_BTN_INV|U8G2_BTN_BW2, 0,  2,  2, "WEIGHTING" );
           flags  = xEventGroupSetBits(scales_flags, FINAL_WEIGHT );
           flags  = xEventGroupClearBits(scales_flags, EMPTY_SCALE );
-          //flag_weighting = 1;
         }
         xSemaphoreGive(mutex_wait);
       }
@@ -569,25 +520,17 @@ void getweight(void *pvParameters)
 
 void get_final_weight(void *pvParameters)
 {
-  
-//#ifdef SERVICE_MODE
-    //vTaskDelete(NULL);
-//#endif  
   while (1)
   { 
     if ((flags & SERVICE_MODE) != SERVICE_MODE)
-    //if (service_mode == false)
     {
-      //if (flag_weighting == 1)
       if ((flags & FINAL_WEIGHT) == FINAL_WEIGHT)
       {
         for (int i = 0; i < CALC_ARRAY_SIZE; i++) {mas[i] = 0;}
         average = 0;
         final_weight = 0;
-        //flag_weighting = 0;
         flags = xEventGroupClearBits(scales_flags, FINAL_WEIGHT);
       }
-      //while (flag_weighting == 0) // Here is the method, which we use to calculate
       while ((flags & FINAL_WEIGHT) != FINAL_WEIGHT)
       {
         median_calc();
@@ -612,15 +555,7 @@ void median_calc()
 #endif
       flags = xEventGroupSetBits(scales_flags, QUEUE_ERROR);
     }
-    //mas[i] = current_weight;
-    //Serial.print("Received value                  -                  ");
-    //Serial.println(current_weight);
     mas[i] = temp_weight;
-    //mas[i] = (reading2*COMPENSATION_WEIGHT*coefficient)/reading1;
-    //Serial.print("Calculated value                  -                  ");
-    //Serial.println(mas[i]);
-    //mas[i] = temp_weight;
-    //if (flag_weighting == 1)
     if ((flags & FINAL_WEIGHT) == FINAL_WEIGHT)
       break;
     vTaskDelay(25 / portTICK_PERIOD_MS);
@@ -636,18 +571,15 @@ void show_current_weight(void *pvParameters)
   while (1)
   {
     if ((flags & SERVICE_MODE) != SERVICE_MODE)
-    //if (service_mode == false)
     {
-    //if (reading1 < 35000 && reading1 > 40000)
-    //{
-    //  set_bit(1);
-    //}
       current_weight_disp = (reading2*COMPENSATION_WEIGHT*coefficient)/reading1;
       vTaskDelay(500 / portTICK_PERIOD_MS);
+#ifdef SERIAL_FOR_DEBUG
       Serial.print("reading1 = ");
       Serial.println(reading1);
       Serial.print("reading2 = ");
       Serial.println(reading2);
+#endif
     }
     else
       vTaskDelay(5000);
@@ -663,7 +595,6 @@ void get_time(void *pvParameters)
   rtc.begin();
   if (! rtc.begin()) 
   {
-    //set_bit(2);
     flags  = xEventGroupSetBits(scales_flags, RTC_ERROR );
   }
   rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
@@ -672,20 +603,16 @@ void get_time(void *pvParameters)
   {
     DateTime now = rtc.now();
     if ((flags & SERVICE_MODE) != SERVICE_MODE)
-    //if (service_mode == false)
     {
-//#ifndef SERVICE_MODE
       if ((now.year() < 2030) && (now.hour() < 24))
-        sprintf(date_time, "%02d/%02d/%04d        %02d:%02d:%02d", now.day(), now.month(), now.year(), now.hour(), now.minute(), now.second());
-//#endif
+        sprintf(date_time, "%02d/%02d/%04d        %02d:%02d:%02d", now.day(), now.month(), now.year(), now.hour(), \
+        now.minute(), now.second());
     }
-//#ifdef SERVICE_MODE
     if ((flags & SERVICE_MODE) == SERVICE_MODE)
-    //if (service_mode == true)
     {
       if ((now.year() < 2030) && (now.hour() < 24))
-        sprintf(date_time, "%02d/%02d/%04d-%02d:%02d:%02d", now.day(), now.month(), now.year(), now.hour(), now.minute(), now.second());
-//#endif
+        sprintf(date_time, "%02d/%02d/%04d-%02d:%02d:%02d", now.day(), now.month(), now.year(), now.hour(), \
+        now.minute(), now.second());
     }
     vTaskDelay(300 / portTICK_PERIOD_MS);
   }
@@ -698,15 +625,11 @@ void get_time(void *pvParameters)
 
 void barcode_scanner(void *pvParameters)
 {
-//#ifdef SERVICE_MODE
-//  vTaskDelete(NULL);
-//#endif
   Serial2.begin(57600, SERIAL_8N1, RXD2, TXD2);
   int data_symbol;
   while (1)
   {
     if ((flags & SERVICE_MODE) != SERVICE_MODE)
-    //if (service_mode == false)
     {
       if (Serial2.available()) 
       {
@@ -742,7 +665,6 @@ void gyroscope_data(void *pvParameters)
   while (1)
   {
     if ((flags & SERVICE_MODE) == SERVICE_MODE)
-    //if (service_mode == true)
     {
       if (gyro_data[0] == 0)
       {
@@ -785,7 +707,6 @@ void gyroscope_data(void *pvParameters)
 void telnet_server(void *pvParameters)
 {
   int8_t i;
-  //Serial.begin(115200);
   Serial.print("\nAttaching to WiFi '" + String(ssid) + String("' ..."));
 
   WiFi.begin(ssid, password);
@@ -815,7 +736,6 @@ void telnet_server(void *pvParameters)
   while (1)
   {
     if ((flags & SERVICE_MODE) == SERVICE_MODE)
-    //if (service_mode == true)
     {
       if (xSemaphoreTake(mutex_wait, portMAX_DELAY) == pdTRUE)
       {
@@ -878,10 +798,8 @@ void setup ( void )
   xTaskCreate(get_time, "get_time", 2048, NULL, 2, NULL);
   xTaskCreate(show_current_weight, "current_weight", 1024, NULL, 3, NULL);
   xTaskCreate(barcode_scanner, "barcode_scanner", 2048, NULL, 2, NULL);
-//#ifdef SERVICE_MODE
   xTaskCreate(gyroscope_data, "gyroscope data", 4096, NULL, 2, NULL);
   xTaskCreatePinnedToCore(telnet_server, "telnet server", 8192, NULL, 3, NULL, 1);
-//#endif
 }
  
 void loop ( void )  

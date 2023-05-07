@@ -9,7 +9,6 @@ extern double final_weight;
 extern double current_weight_disp;
 extern double coefficient;
 extern char barcode_data[BARCODE_DATA_SIZE];
-//extern int error_flag;
 
 extern U8G2_ST7565_ERC12864_1_4W_SW_SPI u8g2;
 //SD class
@@ -247,55 +246,7 @@ void second_page()
 //*---------------PART OF MEDIAN SORT FUNCTION------------------*//
 //*-------------------------------------------------------------*//
 
-int cmpfunc (const void * a, const void * b) {
+int cmpfunc (const void * a, const void * b) 
+{
    return ( *(double*)a - *(double*)b );
 }
-/*
-void is_error()
-{ 
-  u8g2. firstPage ( ) ;
-  do
-  {
-    if (is_bit_set(1))
-    {
-      u8g2.setFont(u8g2_font_t0_16b_tf);
-      u8g2.setCursor(15, 15);
-      u8g2.print("LOAD CELL1");
-      u8g2.setCursor(15, 40);
-      u8g2.print("ERROR!");
-      
-    }
-  }
-  while ( u8g2.nextPage() );
-  
-  
-  
-  if (is_bit_set(2))
-  {
-    u8g2.setFont(u8g2_font_siji_t_6x10);
-    u8g2.setCursor(50, 20);
-    u8g2.print("RTC ERR");
-  }
-  */
-//}
-/*
-int set_bit(int num_bit)
-{
-  error_flag |= (1 << num_bit); // set
-  //error_flag &= ~(1<<num_bit); // clear
-  return error_flag;
-}
-
-int is_bit_set(int num_bit)
-{
-  if (((error_flag << num_bit) & 0x01) == 1)
-  {
-    return true;
-  }
-  if (((error_flag << num_bit) & 0x01) == 0)
-  {
-    return false;
-  }
-  return true;
-}
-*/
