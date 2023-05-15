@@ -44,6 +44,7 @@ const static char password_name[] = "baku2020";     // <---------- WiFi PASSWORD
 #define EMPTY_SCALE BIT10 // Flag, which is "1" if scale for weighting samples is emty. "0" - if sample on the scale.
 #define CALIBRATION_FLAG BIT11 // If this flag = "1", it means, that reset happened and you need to recalibrate scales
 
+
 //*-------------------------------------------------------------*//
 //*---------------------PINs SET DEFINES------------------------*//
 //*-------------------------------------------------------------*//

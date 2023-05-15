@@ -223,18 +223,24 @@ void second_page()
     u8g2. firstPage ( ) ;
     do
     {
-      u8g2.setFont(u8g2_font_t0_16b_tf);
+      u8g2.setFont(u8g2_font_scrum_tf);
       u8g2.setCursor(15, 15);
       u8g2.print("Please, place");
-      u8g2.setFont(u8g2_font_t0_16b_tf);
+      //u8g2.setFont(u8g2_font_scrum_tf);
       u8g2.setCursor(10, 30);
       u8g2.print(COMPENSATION_WEIGHT);
-      u8g2.setFont(u8g2_font_t0_16b_tf);
+      //u8g2.setFont(u8g2_font_scrum_tf);
       u8g2.setCursor(15, 30);
-      u8g2.print("    weight on");
-      u8g2.setFont(u8g2_font_t0_16b_tf);
+      u8g2.print("      weight on");
+      //u8g2.setFont(u8g2_font_scrum_tf);
       u8g2.setCursor(15, 45);
       u8g2.print("the both cells");
+      //u8g2.setFont(u8g2_font_scrum_tf);
+      u8g2.setCursor(40, 60);
+      u8g2.print("<- and press");
+      u8g2.setFont(u8g2_font_fivepx_tr);
+      u8g2.setCursor(0, 64);
+      u8g2.print("CALIBRATE");
       vTaskDelay(200);
     }
     while ( u8g2.nextPage() );

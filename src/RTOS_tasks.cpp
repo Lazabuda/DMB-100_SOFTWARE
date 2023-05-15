@@ -193,7 +193,7 @@ void show_display(void *pvParameters) // create display menu task
 {
   scales_flags = xEventGroupCreate();
   flags = xEventGroupClearBits(scales_flags, WEIGHTING | SD_CARD_ERROR | READING1_OOR_ERROR | BARDODE_DATA_FLAG | FINAL_WEIGHT | \
-  WIFI_FLAG | SERVICE_MODE | WIFI_DATA | RTC_ERROR | EMPTY_SCALE);
+  WIFI_FLAG | SERVICE_MODE | WIFI_DATA | RTC_ERROR | EMPTY_SCALE );
   Serial.begin(115200);
   u8g2. begin ( ) ;
   u8g2. setContrast  (10) ;
@@ -219,8 +219,13 @@ void show_display(void *pvParameters) // create display menu task
       if ((flags & SERVICE_MODE) != SERVICE_MODE)
       {
 #ifndef WITHOUT_TARE
-        second_page();
-        vTaskDelay(5000);
+        while (left_down_button != 1) // While "CALIBRATE" buttun is not pressed, the cycle will be indefinite
+        {
+          second_page();
+          vTaskDelay(50);
+        }
+        
+        
 #endif
       }      
       coefficient = reading1/reading2; 
