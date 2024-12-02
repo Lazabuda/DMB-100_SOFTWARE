@@ -25,7 +25,6 @@ volatile SemaphoreHandle_t mutex_wait;
 
 // Events (FLAGS)
 static EventGroupHandle_t scales_flags;
-static EventBits_t flags;
 
 
 
@@ -192,7 +191,7 @@ void task_button(void *pvParameters) // create button RTOS task
 void show_display(void *pvParameters) // create display menu task
 {
   scales_flags = xEventGroupCreate();
-  flags = xEventGroupClearBits(scales_flags, WEIGHTING | SD_CARD_ERROR | READING1_OOR_ERROR | BARDODE_DATA_FLAG | FINAL_WEIGHT | \
+  xEventGroupClearBits(scales_flags, WEIGHTING | SD_CARD_ERROR | READING1_OOR_ERROR | BARDODE_DATA_FLAG | FINAL_WEIGHT | \
   WIFI_FLAG | SERVICE_MODE | WIFI_DATA | RTC_ERROR | EMPTY_SCALE );
   Serial.begin(115200);
   u8g2. begin ( ) ;
@@ -201,13 +200,12 @@ void show_display(void *pvParameters) // create display menu task
   if(!SD.begin())
   {
     Serial.println("Card Mount Failed");
-    flags  = xEventGroupSetBits(scales_flags, SD_CARD_ERROR );
+    xEventGroupSetBits(scales_flags, SD_CARD_ERROR );
   }
   write_log_header(SD, "/log.csv");
   int i = 0;
   while (true)
   {
-    flags = xEventGroupGetBits(scales_flags);
     if (i < 1)
     {
       start_page();
@@ -216,7 +214,7 @@ void show_display(void *pvParameters) // create display menu task
     }
     if (i < 2)
     {
-      if ((flags & SERVICE_MODE) != SERVICE_MODE)
+      if ((xEventGroupGetBits(scales_flags) & SERVICE_MODE) != SERVICE_MODE)
       {
 #ifndef WITHOUT_TARE
         while (left_down_button != 1) // While "CALIBRATE" buttun is not pressed, the cycle will be indefinite
@@ -236,7 +234,7 @@ void show_display(void *pvParameters) // create display menu task
       Serial.print("Coefficient value - ");
       Serial.println(coefficient, 4);
       if (coefficient > 0.85 && coefficient < 0.75)
-        flags = xEventGroupSetBits(scales_flags, CALIBRATION_FLAG );
+        xEventGroupSetBits(scales_flags, CALIBRATION_FLAG );
       reading1print = reading1;
       reading2print = reading2;
       i++;
@@ -244,36 +242,36 @@ void show_display(void *pvParameters) // create display menu task
     u8g2. firstPage ( ) ;
     do  
     {
-      if ((flags & CALIBRATION_FLAG) == CALIBRATION_FLAG)
+      if ((xEventGroupGetBits(scales_flags) & CALIBRATION_FLAG) == CALIBRATION_FLAG)
       {
 
       }
-      if ((flags & RTC_ERROR) != RTC_ERROR)
+      if ((xEventGroupGetBits(scales_flags) & RTC_ERROR) != RTC_ERROR)
       {
         u8g2.setFont(u8g2_font_siji_t_6x10); // Width 12, Height 12
         u8g2.drawGlyph(66, 10, 0xE016);
       }
-      if ((flags & WIFI_DATA) == WIFI_DATA)
+      if ((xEventGroupGetBits(scales_flags) & WIFI_DATA) == WIFI_DATA)
       {
         u8g2.setFont(u8g2_font_siji_t_6x10); // Width 12, Height 12
         u8g2.drawGlyph(44, 10, 0xE12F);
       }
-      if ((flags & WIFI_FLAG) == WIFI_FLAG)
+      if ((xEventGroupGetBits(scales_flags) & WIFI_FLAG) == WIFI_FLAG)
       {
         u8g2.setFont(u8g2_font_siji_t_6x10); // Width 12, Height 12
         u8g2.drawGlyph(33, 10, 0xE219);
       }
-      if ((flags & SD_CARD_ERROR) != SD_CARD_ERROR)
+      if ((xEventGroupGetBits(scales_flags) & SD_CARD_ERROR) != SD_CARD_ERROR)
       {
         u8g2.setFont(u8g2_font_siji_t_6x10); // Width 12, Height 12
         u8g2.drawGlyph(55, 10, 0xE1D6);
       }
-      if ((flags & SD_CARD_ERROR) == SD_CARD_ERROR)
+      if ((xEventGroupGetBits(scales_flags) & SD_CARD_ERROR) == SD_CARD_ERROR)
       {
         u8g2.setFont(u8g2_font_siji_t_6x10);
         u8g2.drawGlyph(55, 10, 0xE1C4);
       }
-      if ((flags & SERVICE_MODE) != SERVICE_MODE)
+      if ((xEventGroupGetBits(scales_flags) & SERVICE_MODE) != SERVICE_MODE)
       {
         u8g2.setFont(u8g2_font_fivepx_tr);
         u8g2.setCursor(5, 20);
@@ -283,13 +281,13 @@ void show_display(void *pvParameters) // create display menu task
         u8g2.setCursor(40, 20);
         u8g2.print(coefficient, 4);
       }
-      if ((flags & SERVICE_MODE) == SERVICE_MODE)
+      if ((xEventGroupGetBits(scales_flags) & SERVICE_MODE) == SERVICE_MODE)
       {
         u8g2.setFont(u8g2_font_fivepx_tr);
         u8g2.setCursor(5, 20);
         u8g2.print("SERVICE MODE");    
       }
-      if ((flags & BARDODE_DATA_FLAG) != BARDODE_DATA_FLAG)
+      if ((xEventGroupGetBits(scales_flags) & BARDODE_DATA_FLAG) != BARDODE_DATA_FLAG)
       {
         u8g2.setFont(u8g2_font_fivepx_tr);
         u8g2.setCursor(5, 30);
@@ -299,7 +297,7 @@ void show_display(void *pvParameters) // create display menu task
         u8g2.setCursor(80, 30);
         u8g2.print(reading2print); 
       }
-      if ((flags & BARDODE_DATA_FLAG) == BARDODE_DATA_FLAG)
+      if ((xEventGroupGetBits(scales_flags) & BARDODE_DATA_FLAG) == BARDODE_DATA_FLAG)
       {
         u8g2.setFont(u8g2_font_fivepx_tr);
         u8g2.setCursor(5, 30);
@@ -312,18 +310,18 @@ void show_display(void *pvParameters) // create display menu task
 
       if (reading2 < 1000.00)
       {
-        flags  = xEventGroupSetBits(scales_flags, EMPTY_SCALE );
+        xEventGroupSetBits(scales_flags, EMPTY_SCALE );
       }
 
       u8g2.setFont(u8g2_font_7x13B_tf);
       u8g2.setCursor(30, 45);
 
-      if (((flags & EMPTY_SCALE) == EMPTY_SCALE) && (((flags & SERVICE_MODE) != SERVICE_MODE)))
+      if (((xEventGroupGetBits(scales_flags) & EMPTY_SCALE) == EMPTY_SCALE) && ((xEventGroupGetBits(scales_flags) & SERVICE_MODE) != SERVICE_MODE))
       {
         u8g2.print("PUT&PRESS");
       }
 
-      if (((flags & SERVICE_MODE) != SERVICE_MODE) && (flags & EMPTY_SCALE) != EMPTY_SCALE)
+      if (((xEventGroupGetBits(scales_flags) & SERVICE_MODE) != SERVICE_MODE) && ((xEventGroupGetBits(scales_flags) & EMPTY_SCALE) != EMPTY_SCALE))
       {
         if (final_weight == false)
         {
@@ -334,7 +332,7 @@ void show_display(void *pvParameters) // create display menu task
           u8g2.print(final_weight, 2);
         }
       }
-      if ((flags & SERVICE_MODE) == SERVICE_MODE)
+      if ((xEventGroupGetBits(scales_flags) & SERVICE_MODE) == SERVICE_MODE)
       {
         u8g2.setFont(u8g2_font_7x13B_tf);
         u8g2.setCursor(15, 45);
@@ -353,16 +351,16 @@ void show_display(void *pvParameters) // create display menu task
           u8g2.drawButtonUTF8(5, 11, U8G2_BTN_INV|U8G2_BTN_BW2, 0,  0,  0, "MODE" );
           while(1)
           {
-            if ((flags & SERVICE_MODE) != SERVICE_MODE)
+            if ((xEventGroupGetBits(scales_flags) & SERVICE_MODE) != SERVICE_MODE)
             {
-              flags  = xEventGroupSetBits(scales_flags, SERVICE_MODE );
+              xEventGroupSetBits(scales_flags, SERVICE_MODE );
               Serial.println("service_mode = true");
               vTaskDelay(200);
               break;
             }
-            if ((flags & SERVICE_MODE) == SERVICE_MODE)
+            if ((xEventGroupGetBits(scales_flags) & SERVICE_MODE) == SERVICE_MODE)
             {
-              flags = xEventGroupClearBits(scales_flags, SERVICE_MODE );
+              xEventGroupClearBits(scales_flags, SERVICE_MODE );
               Serial.println("service_mode = false");
               vTaskDelay(200);
               break;
@@ -398,7 +396,7 @@ void show_display(void *pvParameters) // create display menu task
           Serial.print("Coefficient value - ");
           Serial.println(coefficient, 4);
 #endif
-          flags = xEventGroupClearBits(scales_flags, BARDODE_DATA_FLAG);
+          xEventGroupClearBits(scales_flags, BARDODE_DATA_FLAG);
           vTaskDelay(20);
         }
         xSemaphoreGive(mutex_wait);
@@ -415,8 +413,8 @@ void show_display(void *pvParameters) // create display menu task
         if (xSemaphoreTake(mutex_wait, portMAX_DELAY) == pdTRUE) 
         {
           u8g2.drawButtonUTF8(105, 10, U8G2_BTN_INV|U8G2_BTN_BW2, 0,  0,  0, "SAVE" );
-          flags = xEventGroupClearBits(scales_flags, BARDODE_DATA_FLAG);
-          if ((flags & SD_CARD_ERROR) != SD_CARD_ERROR)
+          xEventGroupClearBits(scales_flags, BARDODE_DATA_FLAG);
+          if ((xEventGroupGetBits(scales_flags) & SD_CARD_ERROR) != SD_CARD_ERROR)
           {
             append_data_to_log();
             vTaskDelay(30 / portTICK_PERIOD_MS);
@@ -453,8 +451,8 @@ void show_display(void *pvParameters) // create display menu task
         if (xSemaphoreTake(mutex_wait, portMAX_DELAY) == pdTRUE) 
         {
           u8g2.drawButtonUTF8(85, 64, U8G2_BTN_INV|U8G2_BTN_BW2, 0,  2,  2, "WEIGHTING" );
-          flags  = xEventGroupSetBits(scales_flags, FINAL_WEIGHT );
-          flags  = xEventGroupClearBits(scales_flags, EMPTY_SCALE );
+          xEventGroupSetBits(scales_flags, FINAL_WEIGHT );
+          xEventGroupClearBits(scales_flags, EMPTY_SCALE );
         }
         xSemaphoreGive(mutex_wait);
       }
@@ -512,7 +510,7 @@ void getweight(void *pvParameters)
         Serial.print("Value was sent to queue         ");
         Serial.println(current_weight);
 #endif
-        flags = xEventGroupSetBits(scales_flags, QUEUE_ERROR);
+        xEventGroupSetBits(scales_flags, QUEUE_ERROR);
       }
     }
     xSemaphoreGive(mutex_wait);
@@ -527,16 +525,16 @@ void get_final_weight(void *pvParameters)
 {
   while (1)
   { 
-    if ((flags & SERVICE_MODE) != SERVICE_MODE)
+    if ((xEventGroupGetBits(scales_flags) & SERVICE_MODE) != SERVICE_MODE)
     {
-      if ((flags & FINAL_WEIGHT) == FINAL_WEIGHT)
+      if ((xEventGroupGetBits(scales_flags) & FINAL_WEIGHT) == FINAL_WEIGHT)
       {
         for (int i = 0; i < CALC_ARRAY_SIZE; i++) {mas[i] = 0;}
         average = 0;
         final_weight = 0;
-        flags = xEventGroupClearBits(scales_flags, FINAL_WEIGHT);
+        xEventGroupClearBits(scales_flags, FINAL_WEIGHT);
       }
-      while ((flags & FINAL_WEIGHT) != FINAL_WEIGHT)
+      while ((xEventGroupGetBits(scales_flags) & FINAL_WEIGHT) != FINAL_WEIGHT)
       {
         median_calc();
       }
@@ -558,10 +556,10 @@ void median_calc()
       Serial.print("     Value received to queue:         ");
       Serial.println(temp_weight);
 #endif
-      flags = xEventGroupSetBits(scales_flags, QUEUE_ERROR);
+      xEventGroupSetBits(scales_flags, QUEUE_ERROR);
     }
     mas[i] = temp_weight;
-    if ((flags & FINAL_WEIGHT) == FINAL_WEIGHT)
+    if ((xEventGroupGetBits(scales_flags) & FINAL_WEIGHT) == FINAL_WEIGHT)
       break;
     vTaskDelay(25 / portTICK_PERIOD_MS);
   }
@@ -575,7 +573,7 @@ void show_current_weight(void *pvParameters)
 {
   while (1)
   {
-    if ((flags & SERVICE_MODE) != SERVICE_MODE)
+    if ((xEventGroupGetBits(scales_flags) & SERVICE_MODE) != SERVICE_MODE)
     {
       current_weight_disp = (reading2*COMPENSATION_WEIGHT*coefficient)/reading1;
       vTaskDelay(500 / portTICK_PERIOD_MS);
@@ -600,20 +598,20 @@ void get_time(void *pvParameters)
   rtc.begin();
   if (! rtc.begin()) 
   {
-    flags  = xEventGroupSetBits(scales_flags, RTC_ERROR );
+    xEventGroupSetBits(scales_flags, RTC_ERROR );
   }
   rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
   rtc.start();
   while (1)
   {
     DateTime now = rtc.now();
-    if ((flags & SERVICE_MODE) != SERVICE_MODE)
+    if ((xEventGroupGetBits(scales_flags) & SERVICE_MODE) != SERVICE_MODE)
     {
       if ((now.year() < 2030) && (now.hour() < 24))
         sprintf(date_time, "%02d/%02d/%04d        %02d:%02d:%02d", now.day(), now.month(), now.year(), now.hour(), \
         now.minute(), now.second());
     }
-    if ((flags & SERVICE_MODE) == SERVICE_MODE)
+    if ((xEventGroupGetBits(scales_flags) & SERVICE_MODE) == SERVICE_MODE)
     {
       if ((now.year() < 2030) && (now.hour() < 24))
         sprintf(date_time, "%02d/%02d/%04d-%02d:%02d:%02d", now.day(), now.month(), now.year(), now.hour(), \
@@ -634,7 +632,7 @@ void barcode_scanner(void *pvParameters)
   int data_symbol;
   while (1)
   {
-    if ((flags & SERVICE_MODE) != SERVICE_MODE)
+    if ((xEventGroupGetBits(scales_flags) & SERVICE_MODE) != SERVICE_MODE)
     {
       if (Serial2.available()) 
       {
@@ -647,7 +645,7 @@ void barcode_scanner(void *pvParameters)
         Serial.println(barcode_data);
         if (data_symbol > 5)
         {
-          flags  = xEventGroupSetBits(scales_flags, BARDODE_DATA_FLAG );
+          xEventGroupSetBits(scales_flags, BARDODE_DATA_FLAG );
         }
       }
       else
@@ -669,7 +667,7 @@ void gyroscope_data(void *pvParameters)
   int data_symbol;
   while (1)
   {
-    if ((flags & SERVICE_MODE) == SERVICE_MODE)
+    if ((xEventGroupGetBits(scales_flags) & SERVICE_MODE) == SERVICE_MODE)
     {
       if (gyro_data[0] == 0)
       {
@@ -721,7 +719,7 @@ void telnet_server(void *pvParameters)
   {
     if (WiFi.status() == WL_CONNECTED)
     {
-      flags = xEventGroupSetBits(scales_flags, WIFI_FLAG );
+      xEventGroupSetBits(scales_flags, WIFI_FLAG );
       break;
     }
     vTaskDelay(50);
@@ -740,14 +738,14 @@ void telnet_server(void *pvParameters)
   Serial.print("Ready! Use port 23 to connect.");
   while (1)
   {
-    if ((flags & SERVICE_MODE) == SERVICE_MODE)
+    if ((xEventGroupGetBits(scales_flags) & SERVICE_MODE) == SERVICE_MODE)
     {
       if (xSemaphoreTake(mutex_wait, portMAX_DELAY) == pdTRUE)
       {
         
         if (WiFi.status() != WL_CONNECTED) // Check if WiFi is connected
         {
-          flags = xEventGroupClearBits(scales_flags, WIFI_FLAG);
+          xEventGroupClearBits(scales_flags, WIFI_FLAG);
           Serial.println("WiFi not connected! Retrying ...");
           if (Client) Client.stop();
         }
@@ -760,7 +758,7 @@ void telnet_server(void *pvParameters)
         }
         if (Client.connected())
         {
-          flags = xEventGroupSetBits(scales_flags, WIFI_DATA );
+          xEventGroupSetBits(scales_flags, WIFI_DATA );
           char scales_data[350];
           snprintf(scales_data, sizeof(scales_data), "%s %s %s %.2lf %s %.2lf %s", \
           "Date/Time:", date_time, \
@@ -775,7 +773,7 @@ void telnet_server(void *pvParameters)
       }
       xSemaphoreGive(mutex_wait);
       vTaskDelay(500);
-      flags = xEventGroupClearBits(scales_flags, WIFI_DATA );
+      xEventGroupClearBits(scales_flags, WIFI_DATA );
     }
     else
       vTaskDelay(5000);

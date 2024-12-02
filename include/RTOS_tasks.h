@@ -17,7 +17,7 @@
 #define BARCODE_DATA_SIZE 500                       // <---------- Barcode symbols quantity. Change if you need more
 #define GYRO_DATA_SIZE 500                          // <---------- Data symbols from gyroscope quantity. Change if you need more
 #define CALC_ARRAY_SIZE 500                         // <---------- Array size for median calculation of weight. MAX = 900
-#define COMPENSATION_WEIGHT 7.77                    // <---------- The weight of compensation sample. 20 g by default.
+#define COMPENSATION_WEIGHT 20                    // <---------- The weight of compensation sample. 20 g by default.
 
 //*--------------------------------------------*//
 //*---ENTER YOUR WIFI SSID AND PASSWORD HERE---*//
