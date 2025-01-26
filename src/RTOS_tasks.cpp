@@ -451,7 +451,7 @@ void show_display(void *pvParameters) // create display menu task
         if (xSemaphoreTake(mutex_wait, portMAX_DELAY) == pdTRUE) 
         {
           u8g2.drawButtonUTF8(85, 64, U8G2_BTN_INV|U8G2_BTN_BW2, 0,  2,  2, "WEIGHTING" );
-          xEventGroupSetBits(scales_flags, FINAL_WEIGHT );
+          xEventGroupSetBits(scales_flags, FINAL_WEIGHT ); //Set the FINAL_WEIGHT flag to "1"
           xEventGroupClearBits(scales_flags, EMPTY_SCALE );
         }
         xSemaphoreGive(mutex_wait);
@@ -514,7 +514,7 @@ void getweight(void *pvParameters)
       }
     }
     xSemaphoreGive(mutex_wait);
-    vTaskDelay(25 / portTICK_PERIOD_MS);
+    vTaskDelay(20 / portTICK_PERIOD_MS); //The unit of portTICK_PERIOD_MS is milliseconds
     
   }
 }
@@ -525,16 +525,16 @@ void get_final_weight(void *pvParameters)
 {
   while (1)
   { 
-    if ((xEventGroupGetBits(scales_flags) & SERVICE_MODE) != SERVICE_MODE)
+    if ((xEventGroupGetBits(scales_flags) & SERVICE_MODE) != SERVICE_MODE) // If SERVICE_MODE is OFF
     {
-      if ((xEventGroupGetBits(scales_flags) & FINAL_WEIGHT) == FINAL_WEIGHT)
+      if ((xEventGroupGetBits(scales_flags) & FINAL_WEIGHT) == FINAL_WEIGHT) // If FINAL_WEIGHT flag is ON clear the array and fill with 0
       {
         for (int i = 0; i < CALC_ARRAY_SIZE; i++) {mas[i] = 0;}
         average = 0;
         final_weight = 0;
-        xEventGroupClearBits(scales_flags, FINAL_WEIGHT);
+        xEventGroupClearBits(scales_flags, FINAL_WEIGHT); // FINAL_WEIGHT flag is OFF now
       }
-      while ((xEventGroupGetBits(scales_flags) & FINAL_WEIGHT) != FINAL_WEIGHT)
+      while ((xEventGroupGetBits(scales_flags) & FINAL_WEIGHT) != FINAL_WEIGHT) // While the FINAL_WEIGHT flag is 0 calculate the median value
       {
         median_calc();
       }
@@ -559,9 +559,9 @@ void median_calc()
       xEventGroupSetBits(scales_flags, QUEUE_ERROR);
     }
     mas[i] = temp_weight;
-    if ((xEventGroupGetBits(scales_flags) & FINAL_WEIGHT) == FINAL_WEIGHT)
+    if ((xEventGroupGetBits(scales_flags) & FINAL_WEIGHT) == FINAL_WEIGHT) //If FINAL_WEIGHT flag is ON stop the cycle
       break;
-    vTaskDelay(25 / portTICK_PERIOD_MS);
+    vTaskDelay(20 / portTICK_PERIOD_MS);
   }
   qsort(mas, CALC_ARRAY_SIZE, sizeof(double), cmpfunc);
   final_weight = mas[CALC_ARRAY_SIZE/2];
